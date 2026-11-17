@@ -8,4 +8,4 @@ run(t/'d8','--lib',jar,'--min-api','26','--output',b/'dex',*list((b/'classes').r
 run(t/'aapt2','link','-I',jar,'--manifest',base/'AndroidManifest.xml','--min-sdk-version','26','--target-sdk-version','35','-o',b/'test.apk')
 with zipfile.ZipFile(b/'test.apk','a') as z:z.write(b/'dex/classes.dex','classes.dex')
 run(t/'zipalign','-f','4',b/'test.apk',b/'aligned.apk')
-run(t/'apksigner','sign','--ks',p/'build/debug.jks','--ks-pass','pass:android','--out',b/'signed.apk',b/'aligned.apk')
+run(t/'apksigner','sign','--ks',Path(os.environ.get('M2V_DEBUG_KEYSTORE',str(p/'build/debug.jks'))),'--ks-pass','pass:android','--out',b/'signed.apk',b/'aligned.apk')

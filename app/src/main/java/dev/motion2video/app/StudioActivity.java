@@ -27,11 +27,16 @@ public final class StudioActivity extends MainActivity {
  private volatile boolean saving;
  private String savedSource="";
  private JSONObject savedDownload;
- private static final int STORAGE_REQUEST=41;
+ private static final int STORAGE_REQUEST=41,RENDER_PERMISSIONS=42;
+ private boolean bridgeReady;
+ private String presentedJob="";
+ private RenderRequest pendingRender;
+ private final RenderService.Listener renderListener=this::renderState;
 
  @Override public void onCreate(Bundle state){
   super.onCreate(state);
   downloads=new DownloadRepository(this);
+  if(state!=null&&state.getString("pendingRender")!=null)try{pendingRender=RenderRequest.read(this,state.getString("pendingRender"));}catch(Exception ignored){}
   ((ViewGroup)stage.getParent()).removeView(stage);
   studioRoot=new FrameLayout(this);studioRoot.setBackgroundColor(Color.rgb(7,7,9));
   studio=new WebView(this);studio.setBackgroundColor(Color.rgb(7,7,9));
@@ -49,14 +54,15 @@ public final class StudioActivity extends MainActivity {
      if("fonts.googleapis.com".equals(host))return assetResponse("text/css","fonts.css");
      if("motion.local".equals(host)&&path.startsWith("/fonts/")&&!path.contains(".."))return assetResponse("font/ttf",path.substring(1));
      if("cdnjs.cloudflare.com".equals(host)&&path.equals("/ajax/libs/gsap/3.12.5/gsap.min.js"))return assetResponse("application/javascript","studio-gsap-3.12.5.min.js");
-     if("cdn.tailwindcss.com".equals(host))return assetResponse("application/javascript","studio-tailwind.js");
+     if("cdn.tailwindcss.com".equals(host))return assetResponse("application/javascript","studio-tailwind-loader.js");
     }catch(Exception e){return missing();}
     return super.shouldInterceptRequest(v,request);
    }
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
+   @Override public void onPageStarted(WebView v,String url,Bitmap icon){if(url.equals(ORIGIN+"/index.html")){bridgeReady=false;if(port!=null){port.close();port=null;}}}
    @Override public void onPageFinished(WebView view,String url){
     if(!url.equals(ORIGIN+"/index.html"))return;
-    if(port!=null)port.close();
+    if(port!=null)return;
     WebMessagePort[] pair=view.createWebMessageChannel();port=pair[0];
     port.setWebMessageCallback(new WebMessagePort.WebMessageCallback(){@Override public void onMessage(WebMessagePort p,WebMessage m){command(m.getData());}});
     view.postWebMessage(new WebMessage("motion-native-port-v1",new WebMessagePort[]{pair[1]}),Uri.parse(ORIGIN));
@@ -97,10 +103,11 @@ public final class StudioActivity extends MainActivity {
   if(closed||raw==null||raw.length()>3*1024*1024)return;
   try{
    JSONObject m=new JSONObject(raw);String type=m.getString("type");
-   if(type.equals("hello")){emit("connected");emitDownloads();return;}
+   if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working);emitDownloads();renderState(state);return;}
+   if(type.equals("renderState")){renderState(RenderService.latest(this));return;}
    if(type.equals("downloads")){emitDownloads();return;}
    if(type.equals("layout")){layout(m);return;}
-   if(type.equals("cancel")){cancelled=true;return;}
+   if(type.equals("cancel")){if(pendingRender!=null){try{RenderRequest.file(this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;working=false;emit("cancelled");}else RenderService.cancel(this);return;}
    if(type.equals("capabilities")){stage.setVisibility(View.INVISIBLE);emit("capabilities","text",CodecSupport.report());return;}
    if(type.equals("openDownloads")||type.equals("openDownload")||type.equals("save")){
     if(working||saving){emit("downloadError","message","رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");return;}
@@ -130,10 +137,10 @@ public final class StudioActivity extends MainActivity {
   stage.setClipBounds(new Rect(0,(int)Math.min(p.height,Math.max(0,clip*scale)),p.width,p.height));stage.setVisibility(m.optBoolean("visible",true)?View.VISIBLE:View.INVISIBLE);
  }
  @Override protected void onStagePageFinished(){
-  if(studio==null)return;final int token=++readyPoll;pollReady(token,0);
+  if(studio==null||working)return;final int token=++readyPoll;pollReady(token,0);
  }
  private void pollReady(int token,int attempts){
-  if(closed||token!=readyPoll||attempts>150)return;
+  if(closed||working||token!=readyPoll||attempts>150)return;
   stage.evaluateJavascript("window.__m2vReady&&window.__m2vDuration?window.__m2vDuration():null",v->{
    if(closed||token!=readyPoll)return;
    if(v!=null&&!v.equals("null")){try{emit("ready","duration",Double.parseDouble(v));}catch(Exception ignored){}}else stage.postDelayed(()->pollReady(token,attempts+1),200);
@@ -154,10 +161,48 @@ public final class StudioActivity extends MainActivity {
   final String mime=resultMime,ext=resultExt;
   new Thread(()->{try{
    JSONObject item=downloads.save(source,mime,ext);
-   runOnUiThread(()->{saving=false;savedSource=source.getAbsolutePath();savedDownload=item;emit("saved","item",item);emitDownloads();});
+   runOnUiThread(()->{saving=false;savedSource=source.getAbsolutePath();savedDownload=item;RenderService.recordDownload(this,source.getAbsolutePath(),item);emit("saved","item",item);emitDownloads();});
   }catch(Exception e){runOnUiThread(()->{saving=false;emit("downloadError","message","ذخیره در دانلودها انجام نشد؛ فضای خالی و دسترسی حافظه را بررسی کن. "+(e.getMessage()==null?"":e.getMessage()));});}},"save-download").start();
  }
- @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){super.onRequestPermissionsResult(request,permissions,grants);if(request==STORAGE_REQUEST){saving=false;if(grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)saveCurrent();else emit("downloadError","message","در اندروید ۸ و ۹ برای ذخیره در دانلودها، دسترسی حافظه لازم است. ویدیو هنوز برای ذخیرهٔ مجدد در دسترس است.");}}
+ @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){
+  super.onRequestPermissionsResult(request,permissions,grants);
+  if(request==RENDER_PERMISSIONS){if(pendingRender!=null)beginRender();return;}
+  if(request==STORAGE_REQUEST){saving=false;if(grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)saveCurrent();else emit("downloadError","message","در اندروید ۸ و ۹ برای ذخیره در دانلودها، دسترسی حافظه لازم است. ویدیو هنوز برای ذخیرهٔ مجدد در دسترس است.");}
+ }
+ @Override protected void export(){
+  try{
+   if(RenderService.busy(RenderService.latest(this)))throw new IOException("یک رندر دیگر در حال اجراست.");
+   int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920}};int[] size=sizes[sizeChoice.getSelectedItemPosition()];
+   JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked());
+   pendingRender=RenderRequest.create(editor.getText().toString(),options);getPreferences(0).edit().putString("code",pendingRender.html).apply();
+   ArrayList<String> permissions=new ArrayList<>();
+   if(android.os.Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
+   if(android.os.Build.VERSION.SDK_INT<29&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+   if(!permissions.isEmpty()){pendingRender.write(this);working=true;requestPermissions(permissions.toArray(new String[0]),RENDER_PERMISSIONS);}else beginRender();
+  }catch(Exception e){working=false;pendingRender=null;emit("error","message",e.getMessage()==null?"شروع رندر انجام نشد.":e.getMessage());}
+ }
+ private void beginRender(){
+  RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}
+  try{RenderService.start(this,request);working=true;stage.onPause();emit("renderState","state",new JSONObject().put("phase","preparing").put("id",request.id).put("done",0).put("total",request.frames).put("options",request.options()).put("message","آماده‌سازی رندر مستقل…"));}
+  catch(Exception e){working=false;emit("error","message","شروع سرویس رندر انجام نشد: "+e.getMessage());}
+ }
+ private void renderState(JSONObject s){
+  if(closed||!bridgeReady||s.optString("phase").isEmpty())return;
+  working=RenderService.busy(s);
+  if(working){stage.onPause();emit("renderState","state",s);return;}
+  stage.onResume();String id=s.optString("id"),phase=s.optString("phase");
+  if((id+":"+phase).equals(presentedJob))return;presentedJob=id+":"+phase;
+  if(phase.equals("complete")){
+   File file=new File(s.optString("file"));if(!file.isFile()){emit("error","message","فایل موقت خروجی دیگر موجود نیست؛ دانلودهای من را بررسی کن.");return;}
+   result=file;resultExt=s.optString("ext","mp4");resultMime=s.optString("mime","video/mp4");exportPath="/exports/"+id+"."+resultExt;
+   emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length(),"options",s.optJSONObject("options"));
+   JSONObject item=s.optJSONObject("download");if(item!=null){savedSource=file.getAbsolutePath();savedDownload=item;emit("saved","item",item);}else if(s.has("warning"))emit("downloadError","message",s.optString("warning"));
+   emitDownloads();
+  }else if(phase.equals("cancelled"))emit("cancelled");else emit("error","message",s.optString("message","رندر متوقف شد."));
+ }
+ @Override protected void onStart(){super.onStart();RenderService.addListener(renderListener);if(bridgeReady)renderState(RenderService.latest(this));}
+ @Override protected void onStop(){RenderService.removeListener(renderListener);super.onStop();}
+ @Override protected void onSaveInstanceState(Bundle out){if(pendingRender!=null)out.putString("pendingRender",pendingRender.id);super.onSaveInstanceState(out);}
  private void openDownload(String uri)throws Exception{
   try{startActivity(downloads.openIntent(uri));}catch(android.content.ActivityNotFoundException e){throw new IOException("پخش‌کنندهٔ سازگار روی گوشی پیدا نشد.");}catch(FileNotFoundException e){throw new IOException("فایل پیدا نشد؛ ممکن است از دانلودها پاک یا جابه‌جا شده باشد.");}
  }

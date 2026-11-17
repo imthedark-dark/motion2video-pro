@@ -21,6 +21,7 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - run: python3 tools/audit_source.py
+      - run: python3 tools/test_yuv.py
       - run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:

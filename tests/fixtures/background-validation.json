@@ -1,0 +1,63 @@
+{
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 640,
+        "height": 360,
+        "pix_fmt": "yuv420p",
+        "color_range": "tv",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "r_frame_rate": "30/1",
+        "avg_frame_rate": "30/1",
+        "nb_read_frames": "30"
+      }
+    ],
+    "format": {
+      "duration": "1.000000",
+      "size": "30997"
+    }
+  },
+  "homeDuringRender": true,
+  "downloadSizeMatches": true,
+  "motionBoxes": [
+    [
+      30,
+      300,
+      68,
+      336
+    ],
+    [
+      176,
+      300,
+      212,
+      336
+    ]
+  ],
+  "atoms": [
+    [
+      "ftyp",
+      0,
+      24
+    ],
+    [
+      "moov",
+      24,
+      906
+    ],
+    [
+      "free",
+      930,
+      2286
+    ],
+    [
+      "mdat",
+      3216,
+      27781
+    ]
+  ]
+}

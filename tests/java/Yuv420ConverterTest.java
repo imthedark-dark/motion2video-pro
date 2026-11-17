@@ -1,0 +1,15 @@
+import dev.motion2video.app.Yuv420Converter;
+import java.nio.*;import java.util.*;
+public final class Yuv420ConverterTest {
+ static int clamp(int n){return Math.max(0,Math.min(255,n));}
+ static class Plane{ByteBuffer b;int stride,pixel,base;Plane(ByteBuffer b,int s,int p,int base){this.b=b;stride=s;pixel=p;this.base=base;b.position(base);}void put(int x,int y,int v){b.put(base+y*stride+x*pixel,(byte)v);}}
+ static void original(int[] pixels,int w,int h,Plane[] p){for(int y=0;y<h;y++)for(int x=0;x<w;x++){int a=pixels[y*w+x],r=(a>>16)&255,g=(a>>8)&255,b=a&255;p[0].put(x,y,clamp(((47*r+157*g+16*b+128)>>8)+16));if((x&1)==0&&(y&1)==0){int rr=0,gg=0,bb=0;for(int dy=0;dy<2;dy++)for(int dx=0;dx<2;dx++){int q=pixels[(y+dy)*w+x+dx];rr+=(q>>16)&255;gg+=(q>>8)&255;bb+=q&255;}rr/=4;gg/=4;bb/=4;p[1].put(x/2,y/2,clamp(((-26*rr-86*gg+112*bb+128)>>8)+128));p[2].put(x/2,y/2,clamp(((112*rr-102*gg-10*bb+128)>>8)+128));}}}
+ static Plane[] planes(int w,int h,int step,boolean shared){ByteBuffer y=ByteBuffer.allocate((w+11)*2*h+17);Plane yy=new Plane(y,(w+11)*2,2,5);if(shared){ByteBuffer uv=ByteBuffer.allocate((w+12)*(h/2)+17);return new Plane[]{yy,new Plane(uv.duplicate(),w+12,2,4),new Plane(uv.duplicate(),w+12,2,5)};}return new Plane[]{yy,new Plane(ByteBuffer.allocate((w/2+8)*step*h/2+17),(w/2+8)*step,step,3),new Plane(ByteBuffer.allocate((w/2+7)*step*h/2+17),(w/2+7)*step,step,6)};}
+ static void convert(Yuv420Converter c,int[] px,Plane[] p){c.convert(px,p[0].b,p[0].stride,p[0].pixel,p[1].b,p[1].stride,p[1].pixel,p[2].b,p[2].stride,p[2].pixel);}
+ public static void main(String[] args){Random random=new Random(94813);int cases=0;
+  for(int w:new int[]{2,8,30,64})for(int h:new int[]{2,10,32})for(int stride:new int[]{1,2,3})for(boolean shared:new boolean[]{false,true}){int[] pixels=new int[w*h];for(int i=0;i<pixels.length;i++)pixels[i]=random.nextInt();Plane[] a=planes(w,h,stride,shared),b=planes(w,h,stride,shared);original(pixels,w,h,a);convert(new Yuv420Converter(w,h),pixels,b);for(int i=0;i<3;i++)if(!Arrays.equals(a[i].b.array(),b[i].b.array()))throw new AssertionError("YUV differs case "+cases+" plane "+i);cases++;}
+  int w=1280,h=720;int[] pixels=new int[w*h];for(int i=0;i<pixels.length;i++)pixels[i]=random.nextInt();Plane[] a={new Plane(ByteBuffer.allocate(w*h),w,1,0),new Plane(ByteBuffer.allocate(w*h/4),w/2,1,0),new Plane(ByteBuffer.allocate(w*h/4),w/2,1,0)};Yuv420Converter converter=new Yuv420Converter(w,h);
+  for(int i=0;i<12;i++){original(pixels,w,h,a);convert(converter,pixels,a);}long begin=System.nanoTime();for(int i=0;i<30;i++)original(pixels,w,h,a);long baseline=System.nanoTime()-begin;begin=System.nanoTime();for(int i=0;i<30;i++)convert(converter,pixels,a);long optimized=System.nanoTime()-begin;
+  System.out.println("PASS: "+cases+" bit-identical plane/stride/offset cases, including shared UV buffers.");System.out.printf(java.util.Locale.US,"720p conversion benchmark (JVM only): original %.1f ms, optimized %.1f ms, %.2fx\n",baseline/1e6,optimized/1e6,(double)baseline/optimized);
+ }
+}

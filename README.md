@@ -8,12 +8,12 @@
 
 **Turn code into motion. Turn motion into video.**
 
-<img src="docs/assets/badge-version.svg" height="28" alt="Version 1.3.1" />
+<img src="docs/assets/badge-version.svg" height="28" alt="Version 1.4.0" />
 <img src="docs/assets/badge-android.svg" height="28" alt="Android 8 and later" />
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[Download Android APK](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.3.1/downloads/Motion2Video-1.3.1-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1)
+[Download Android APK](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.0/downloads/Motion2Video-1.4.0-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.0)
 
 [Overview](#overview) · [Quick start](#quick-start) · [Downloads](#downloads) · [Build](#build) · [Validation](#validation)
 
@@ -39,15 +39,16 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 | HTML / CSS / SVG / GSAP | H.264 in MP4 as the primary output | Automatic saving to Downloads |
 | Bundled Persian and Arabic fonts | Selectable 30 or 60fps | File names and saved paths |
 | Preview and replay | Landscape and portrait sizes | Open files and system Downloads |
+| Background render service | Two reusable frame buffers | Progress notification and cancellation |
 
 <a id="quick-start"></a>
 ## Three steps to your first video
 
 1. **Import:** choose a standalone animation HTML file or run the included preset.
 2. **Preview and configure:** check the motion, duration, size, frame rate, and codec.
-3. **Render:** keep the app open, then check the save result and output path.
+3. **Render:** start the job, then switch apps if needed. Check its notification or return to the app for the result and saved path.
 
-> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1), or build it from source.
+> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.0), or build it from source.
 
 <a id="downloads"></a>
 ## Your exports, together
@@ -61,6 +62,16 @@ Download/
 **My Downloads** lists the name, path, size, and date of exports registered by this app. Open a file in a compatible player, or open its folder with a compatible file manager. If opening the specific folder is unsupported, the app falls back to system Downloads. The list persists after closing the app.
 
 Android 10+ uses MediaStore.Downloads. Android 8 and 9 require storage permission. VP8/VP9 exports keep their actual `.webm` extension.
+
+## Background rendering and speed
+
+Rendering runs in a foreground service with a private virtual display, independently of the Activity. Home, app switching, and removing the app screen do not cancel the job. Reopening the app restores progress or the completed result. Allow notifications to see progress and cancel from the notification.
+
+Two reusable frame buffers overlap capture with encoding. Frame-ready messages replace polling and extra Activity frame waits. The RGB-to-YUV converter uses cached planes and row writes while retaining the exact previous integer color math. Output dimensions, frame rate, bitrate and frame count are not reduced for speed.
+
+In one desktop JVM test, converting thirty 720p frames took 152.7ms in the original path and 93.3ms in the optimized path (1.64× for this conversion stage only). This is not a whole-export or phone benchmark; actual export speed depends on the HTML and device.
+
+**Force stop, process termination and some device battery policies can still interrupt a job.** A force-stopped job is not automatically resumed. Android also applies foreground-service time limits. [Performance and background details](docs/PERFORMANCE.md).
 
 ## Inside the studio
 
@@ -94,6 +105,7 @@ npm ci
 npx playwright-core install chromium
 npm run test:ui
 npm run test:clock
+python3 tools/test_yuv.py
 ```
 
 To use a system Chromium installation, set `CHROMIUM_PATH` to its executable. The [full technical guide, in Persian](docs/BUILD.md) covers Android builds, the code structure, and detailed limitations.
@@ -109,10 +121,13 @@ To use a system Chromium installation, set `CHROMIUM_PATH` to its executable. Th
 | Mobile/desktop UI and Downloads messages | Passed with a simulated native bridge |
 | Animation clock: modern API and CSS fallback | Passed |
 | Actual one-second MP4 render at 360p/30fps | Verified on an Android 11 emulator in v1.2 |
-| New MediaStore saving and Android 8/9 storage path | Not yet exercised on Android |
+| Background service render + Home + MediaStore Downloads save | Verified on an Android 11 emulator at 360p30 |
+| Activity removal, restored playable result/path/settings, immediate and notification cancellation | Passed on the Android 11 emulator |
+| 72 YUV stride/offset/shared-plane regression cases | Byte-identical to the previous converter |
+| Android 8/9 storage and Android 13+ notification permission | Not acceptance-tested on devices |
 | Physical phones, every codec, 1080p60, and WebGL | Not acceptance-tested |
 
-The earlier native render sample is in [`tests/fixtures`](tests/fixtures). MP4 recording in the standalone browser HTML depends on that browser's capture and encoding support.
+The native render sample is in [`tests/fixtures`](tests/fixtures). MP4 recording in the standalone browser HTML depends on that browser's capture and encoding support.
 
 ## Project map
 

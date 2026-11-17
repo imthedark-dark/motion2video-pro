@@ -1,6 +1,7 @@
 /* Deterministic animation clock. CSS fallback supports WebViews without Document.getAnimations. */
 (function(){'use strict';
-var cssRecords=null,clockStyle=null;
+var cssRecords=null,clockStyle=null,framePort=null;
+window.addEventListener('message',function(e){if((e.source===null||e.source===window)&&e.data==='motion-clock-port-v1'&&e.ports&&e.ports.length===1&&!framePort){framePort=e.ports[0];framePort.start();framePort.postMessage('attached');}});
 function seconds(v){return parseFloat(v)*(String(v).trim().slice(-2)==='ms'?.001:1)||0;}
 function scan(){if(cssRecords)return cssRecords;cssRecords=[];var id=0;
  Array.prototype.forEach.call(document.querySelectorAll('*'),function(el){
@@ -27,7 +28,7 @@ window.__m2vSeek=function(time,token){window.__m2vFrameReady=null;
  if(document.getAnimations)document.getAnimations().forEach(function(a){a.pause();a.currentTime=time*1000});else fallback(time);
  if(window.lottie&&lottie.getRegisteredAnimations)lottie.getRegisteredAnimations().forEach(function(a){a.pause();a.goToAndStop(time*a.frameRate,true)});
  if(typeof window.renderFrame==='function')window.renderFrame(time);
- requestAnimationFrame(function(){requestAnimationFrame(function(){window.__m2vFrameReady=token;});});
+ requestAnimationFrame(function(){requestAnimationFrame(function(){window.__m2vFrameReady=token;if(framePort)framePort.postMessage(String(token));});});
  return true;
 };
 })();
