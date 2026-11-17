@@ -11,7 +11,7 @@ RULES={
  'AWS access key':re.compile(r'\b(?:AKIA|ASIA)[A-Z0-9]{16}\b'),
  'Google API key':re.compile(r'\bAIza[0-9A-Za-z_-]{35}\b'),
  'Slack credential':re.compile(r'\bxox[baprs]-[A-Za-z0-9-]{20,}\b'),
- 'signed download link':re.compile(r'https://[^\s\"<>]*oaiusercontent\.com/[^\s\"<>]*[?&]sig='),
+ 'signed download link':re.compile(r'https?://[^\s\"<>]+[?&](?:sig|X-Amz-Signature|X-Goog-Signature)=',re.IGNORECASE),
  'credential in URL':re.compile(r'https?://[^\s/:]+:[^\s/@]+@'),
 }
 try:
