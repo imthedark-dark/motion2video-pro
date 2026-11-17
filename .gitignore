@@ -1,0 +1,37 @@
+# Local builds and development tools
+.gradle/
+**/build/
+dist/
+node_modules/
+__pycache__/
+*.py[cod]
+local.properties
+.idea/
+.vscode/
+# Signing keys and credentials
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+.npmrc
+.netrc
+credentials*
+# Generated test output and runtime data
+*.log
+tests/*-report.json
+tests/*.png
+.DS_Store
+
+# Local binary packages and additional private signing formats
+*.apk
+*.aab
+*.idsig
+*.zip
+*.pk8
+*.p8
+service-account*.json
