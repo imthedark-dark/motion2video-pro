@@ -35,3 +35,6 @@ tests/*.png
 *.pk8
 *.p8
 service-account*.json
+
+# Explicit distributable, never a signing key
+!downloads/*.apk

@@ -13,7 +13,7 @@
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[Download Android APK](https://github.com/imthedark-dark/motion2video-pro/releases/download/v1.3.1-dark/Motion2Video-1.3.1-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1-dark)
+[Download Android APK](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.3.1/downloads/Motion2Video-1.3.1-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1)
 
 [Overview](#overview) · [Quick start](#quick-start) · [Downloads](#downloads) · [Build](#build) · [Validation](#validation)
 
@@ -47,7 +47,7 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 2. **Preview and configure:** check the motion, duration, size, frame rate, and codec.
 3. **Render:** keep the app open, then check the save result and output path.
 
-> Android 8 or later is required. Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1-dark), or build it from source.
+> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1), or build it from source.
 
 <a id="downloads"></a>
 ## Your exports, together
