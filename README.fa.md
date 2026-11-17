@@ -13,6 +13,8 @@
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
+[دریافت APK اندروید](https://github.com/imthedark-dark/motion2video-pro/releases/download/v1.3.1-dark/Motion2Video-1.3.1-Dark.apk) · [همهٔ فایل‌های انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1-dark)
+
 [معرفی](#overview) · [شروع سریع](#quick-start) · [دانلودها](#downloads) · [ساخت از سورس](#build) · [وضعیت آزمون‌ها](#validation)
 
 </div>
@@ -49,7 +51,7 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 2. **ببین و تنظیم کن:** پیش‌نمایش، مدت، اندازه، نرخ فریم و کدک را بررسی کن.
 3. **رندر بگیر:** برنامه را باز نگه دار؛ پس از پایان، نتیجهٔ ذخیره و مسیر فایل را ببین.
 
-> حداقل Android 8 لازم است. APK آماده هنوز روی GitHub منتشر نشده است؛ تا آماده‌شدن مخزن، ساخت از سورس در دسترس است.
+> حداقل Android 8 لازم است. APK آزمایشیِ امضاشده را از [صفحهٔ انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.3.1-dark) دریافت کن یا از سورس بساز.
 
 <a id="downloads"></a>
 ## خروجی‌هایت، یک‌جا
