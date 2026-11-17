@@ -1,30 +1,30 @@
 <div align="center">
 
+**English** · [فارسی](README.fa.md)
+
 <img src="docs/assets/hero.svg" width="100%" alt="Motion2Video Pro — a kinetic studio built by Dark" />
 
 # Motion2Video Pro
 
-**کدت را به حرکت تبدیل کن؛ حرکتت را به ویدیو.**
+**Turn code into motion. Turn motion into video.**
 
 <img src="docs/assets/badge-version.svg" height="28" alt="Version 1.3.1" />
 <img src="docs/assets/badge-android.svg" height="28" alt="Android 8 and later" />
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[معرفی](#overview) · [شروع سریع](#quick-start) · [دانلودها](#downloads) · [ساخت از سورس](#build) · [وضعیت آزمون‌ها](#validation)
+[Overview](#overview) · [Quick start](#quick-start) · [Downloads](#downloads) · [Build](#build) · [Validation](#validation)
 
 </div>
 
 ---
 
-<div dir="rtl" lang="fa">
+<div dir="ltr" lang="en">
 
 <a id="overview"></a>
-## استودیوی حرکت، در جیب تو
+## A motion studio in your pocket
 
-**Motion2Video Pro** یک برنامهٔ اندرویدی با رابط فارسی و راست‌به‌چپ است: HTML موشن را وارد کن، پیش‌نمایش را ببین و با موتور بومی اندروید خروجی ویدیو بساز. رابط تیره، لوگوی اختصاصی، حرکت‌های GSAP و امضای **Dark** همراه پروژه‌اند.
-
-<div dir="ltr">
+**Motion2Video Pro** is an Android app with a Persian, right-to-left interface. Import an HTML animation, preview it, and export video with Android's native media engine. The project includes a dark studio UI, an original vector logo, GSAP motion, and the **Dark** signature.
 
 ```text
 animation.html  →  preview  →  frame-by-frame render  →  video.mp4
@@ -32,27 +32,23 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
                                          Download/Motion2Video/
 ```
 
-</div>
-
-| بساز | خروجی بگیر | نگه دار |
+| Create | Export | Keep |
 | :--- | :--- | :--- |
-| HTML / CSS / SVG / GSAP | مسیر اصلی H.264 در MP4 | ذخیرهٔ خودکار در دانلودها |
-| قلم‌های فارسی و عربی همراه برنامه | 30 یا 60fps قابل انتخاب | نمایش نام و مسیر هر فایل |
-| پیش‌نمایش و بازپخش موشن | حالت افقی و عمودی | بازکردن فایل و دانلودهای گوشی |
+| HTML / CSS / SVG / GSAP | H.264 in MP4 as the primary output | Automatic saving to Downloads |
+| Bundled Persian and Arabic fonts | Selectable 30 or 60fps | File names and saved paths |
+| Preview and replay | Landscape and portrait sizes | Open files and system Downloads |
 
 <a id="quick-start"></a>
-## سه قدم تا اولین ویدیو
+## Three steps to your first video
 
-1. **وارد کن:** فایل HTML مستقل موشن را انتخاب کن یا نمونهٔ آماده را اجرا کن.
-2. **ببین و تنظیم کن:** پیش‌نمایش، مدت، اندازه، نرخ فریم و کدک را بررسی کن.
-3. **رندر بگیر:** برنامه را باز نگه دار؛ پس از پایان، نتیجهٔ ذخیره و مسیر فایل را ببین.
+1. **Import:** choose a standalone animation HTML file or run the included preset.
+2. **Preview and configure:** check the motion, duration, size, frame rate, and codec.
+3. **Render:** keep the app open, then check the save result and output path.
 
-> حداقل Android 8 لازم است. APK آماده هنوز روی GitHub منتشر نشده است؛ تا آماده‌شدن مخزن، ساخت از سورس در دسترس است.
+> Android 8 or later is required. A ready-to-install APK has not yet been published on GitHub. Building from source is available while the repository is being set up.
 
 <a id="downloads"></a>
-## خروجی‌هایت، یک‌جا
-
-<div dir="ltr">
+## Your exports, together
 
 ```text
 Download/
@@ -60,44 +56,36 @@ Download/
     └── Motion2Video_20261117_120000_001_abc123.mp4
 ```
 
-</div>
+**My Downloads** lists the name, path, size, and date of exports registered by this app. Open a file in a compatible player, or open its folder with a compatible file manager. If opening the specific folder is unsupported, the app falls back to system Downloads. The list persists after closing the app.
 
-بخش **دانلودهای من** نام، مسیر، حجم و زمان فایل‌های ثبت‌شدهٔ همین برنامه را نشان می‌دهد. دکمهٔ بازکردن فایل، آن را به پخش‌کنندهٔ گوشی می‌دهد؛ دکمهٔ پوشه، فایل‌منیجر سازگار یا صفحهٔ دانلودهای سیستم را باز می‌کند. فهرست پس از بستن برنامه باقی می‌ماند.
+Android 10+ uses MediaStore.Downloads. Android 8 and 9 require storage permission. VP8/VP9 exports keep their actual `.webm` extension.
 
-Android 10+ از MediaStore.Downloads استفاده می‌کند؛ روی Android 8 و 9 اجازهٔ ذخیره در حافظه لازم است. برای VP8/VP9 پسوند واقعی فایل `.webm` خواهد بود.
+## Inside the studio
 
-## جعبه‌ابزار استودیو
-
-| بخش | ابزارها |
+| Area | Tools |
 | :--- | :--- |
-| رابط | یک فایل HTML، Tailwind، GSAP و SVG |
-| رندر اندروید | Java، MediaCodec، MediaMuxer، FastStart |
-| موشن همراه | GSAP Core و پنج افزونه، Lottie، Three.js |
-| تایپوگرافی | Vazirmatn، Amiri، Noto Naskh Arabic، Scheherazade New، Anton، Inter |
-| مسیر اختیاری کامپیوتر | FFmpeg برای تبدیل و ترکیب صدا |
+| Interface | Single-file HTML, Tailwind, GSAP, SVG |
+| Android rendering | Java, MediaCodec, MediaMuxer, FastStart |
+| Bundled motion libraries | GSAP Core and five plugins, Lottie, Three.js |
+| Typography | Vazirmatn, Amiri, Noto Naskh Arabic, Scheherazade New, Anton, Inter |
+| Optional desktop path | FFmpeg conversion and audio mixing |
 
-خروجی اندروید فعلاً **بی‌صدا** است. HEVC/AV1 و VP8/VP9 به قابلیت گوشی وابسته‌اند؛ ProRes/MOV/alpha در APK پیاده نشده‌اند. انتخاب 1080p یا 60fps به معنی پشتیبانی همهٔ دستگاه‌ها از آن ترکیب نیست.
+Android export is currently **silent**. HEVC/AV1 and VP8/VP9 depend on device capabilities. ProRes/MOV/alpha export is not implemented in the APK. Selecting 1080p or 60fps does not guarantee that every device supports that combination.
 
 <a id="build"></a>
-## از سورس اجرا کن
+## Build from source
 
-JDK 17+، Python 3، Android SDK Platform 35 و Build Tools 35.0.0 لازم‌اند.
-
-<div dir="ltr">
+Install JDK 17+, Python 3, Android SDK Platform 35, and Build Tools 35.0.0.
 
 ```sh
 export ANDROID_SDK_ROOT=/path/to/Android/Sdk
 python3 build.py
 ```
 
-</div>
-
-فایل نصب آزمایشی در `dist/` ساخته می‌شود. کلید محلی `build/debug.jks` وارد Git نمی‌شود. نسخه‌های ساخته‌شده روی سیستم‌های مختلف، امضای آزمایشی مستقل دارند.
+The debug APK is created in `dist/`. The local `build/debug.jks` signing key is excluded from Git. Builds produced on different machines use independent debug signing keys.
 
 <details>
-<summary><strong>آزمون رابط و ساعت انیمیشن</strong></summary>
-
-<div dir="ltr">
+<summary><strong>UI and animation clock tests</strong></summary>
 
 ```sh
 npm ci
@@ -106,29 +94,25 @@ npm run test:ui
 npm run test:clock
 ```
 
-</div>
-
-برای Chromium نصب‌شدهٔ سیستم، `CHROMIUM_PATH` را به فایل اجرایی مرورگر تنظیم کن. [راهنمای فنی کامل](docs/BUILD.md) شامل ساخت اندروید، ساختار کد و جزئیات محدودیت‌هاست.
+To use a system Chromium installation, set `CHROMIUM_PATH` to its executable. The [full technical guide, in Persian](docs/BUILD.md) covers Android builds, the code structure, and detailed limitations.
 
 </details>
 
 <a id="validation"></a>
-## وضعیت واقعی آزمون‌ها
+## What has been tested
 
-| بررسی | وضعیت |
+| Check | Status |
 | :--- | :--- |
-| ساخت مستقل سورس و بررسی امضای APK | انجام شده |
-| رابط موبایل/دسکتاپ و پیام‌های بخش دانلود | انجام شده؛ پل بومی شبیه‌سازی شده |
-| ساعت انیمیشن: API جدید و مسیر جایگزین CSS | انجام شده |
-| رندر واقعی MP4 یک‌ثانیه‌ای، 360p/30fps | روی شبیه‌ساز Android 11 در نسخهٔ ۱.۲ بررسی شده |
-| ذخیرهٔ جدید MediaStore و مسیر Android 8/9 | هنوز آزمون اجرایی اندروید نشده |
-| گوشی واقعی، همهٔ کدک‌ها، 1080p60 و WebGL | آزمون پذیرش نشده |
+| Independent source build and APK signature verification | Passed |
+| Mobile/desktop UI and Downloads messages | Passed with a simulated native bridge |
+| Animation clock: modern API and CSS fallback | Passed |
+| Actual one-second MP4 render at 360p/30fps | Verified on an Android 11 emulator in v1.2 |
+| New MediaStore saving and Android 8/9 storage path | Not yet exercised on Android |
+| Physical phones, every codec, 1080p60, and WebGL | Not acceptance-tested |
 
-نمونهٔ رندر قبلی در [`tests/fixtures`](tests/fixtures) موجود است. ضبط MP4 در فایل HTML مستقل مرورگر به پشتیبانی همان مرورگر وابسته است.
+The earlier native render sample is in [`tests/fixtures`](tests/fixtures). MP4 recording in the standalone browser HTML depends on that browser's capture and encoding support.
 
-## نقشهٔ پروژه
-
-<div dir="ltr">
+## Project map
 
 ```text
 app/       Android app, media engine, fonts & libraries
@@ -139,13 +123,11 @@ tools/     Source audit & dependency update checker
 docs/      Build guide & original README graphics
 ```
 
-</div>
+## Privacy and credits
 
-## حریم خصوصی و اعتبارها
+Private signing keys, tokens, local settings, environment logs, and user runtime data are excluded from publication. Imported animation HTML is not sent to an app rendering server; external resources referenced by that HTML can still access the network. See the [source audit policy](SECURITY.md) and [third-party font and library notices](THIRD_PARTY_NOTICES.md).
 
-کلید خصوصی امضا، توکن، تنظیمات محلی، لاگ محیط و دادهٔ کاربر از انتشار کنار گذاشته شده‌اند. HTML واردشده برای رندر به سرور برنامه ارسال نمی‌شود؛ منابع خارجی همان HTML می‌توانند از شبکه استفاده کنند. [بررسی سورس](SECURITY.md) و [مجوزهای کتابخانه‌ها و فونت‌ها](THIRD_PARTY_NOTICES.md) در مخزن نگه داشته می‌شوند.
-
-طراحی این README با الهام از **Wow Profile** معرفی‌شده در [پست GitSkins](https://www.instagram.com/p/Dep83b7oDEb/) انجام شده است. بنر و نشان‌های این پروژه اختصاصی‌اند.
+This README takes visual inspiration from **Wow Profile**, featured in the [GitSkins post](https://www.instagram.com/p/Dep83b7oDEb/). Its banner and badges were created specifically for this project.
 
 </div>
 
