@@ -17,7 +17,9 @@ function get(ref, file) {
     run('git', ['show', ref + ':' + file], {cwd: root, encoding: 'utf8'});
 }
 
-function makeStage(ref, tmp) {
+function makeStage(ref, tmp, htmlSource = fixture, seed = false) {
+  const input = path.join(tmp,'fixture.html');
+  fs.writeFileSync(input,htmlSource);
   const source = get(ref, javaPath + 'StageAssets.java');
   const oldResponse = source.includes('Context c,Uri uri)');
   const fontCache = source.includes("FontCache.Scope");
@@ -51,9 +53,26 @@ public final class HostStage {
  public static void main(String[] a)throws Exception{
   Path root=Path.of(a[0]);
   Context c=new Context(root);
+  ${fontCache?`
+  FontCache cache=new FontCache(Path.of("host-cache"));
+  if(a[1].equals("seed")){
+   byte[] font=Files.readAllBytes(root.resolve("fonts/anton-Anton-Regular.ttf"));
+   String css="@font-face{font-family:Cairo;src:url(https://fonts.gstatic.com/s/cairo/test.ttf) format('truetype');}";
+   FontDownload downloader=new FontDownload((url,limit,control)->"fonts.googleapis.com".equals(url.getHost())
+    ?new FontDownload.Reply(200,"text/css",css.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+    :new FontDownload.Reply(200,"font/ttf",font));
+   FontDownload.Control control=new FontDownload.Control();
+   cache.save(downloader.download("Cairo",control,bytes->{}),control);
+   return;
+  }
+  FontDiscovery needed=FontDiscovery.scan(Files.readString(Path.of("fixture.html")));
+  java.util.Set<String> families=new java.util.HashSet<>(needed.google);
+  families.addAll(needed.declared);
+  FontCache.Scope scope=cache.scope(families,false);
+  `:''}
   if(a[1].equals("document")){
    String html=Files.readString(Path.of(a[2]));
-   String clock=StageAssets.text(c,"motion-clock.js"),fonts=StageAssets.text(c,"fonts.css");
+   String clock=StageAssets.text(c,"motion-clock.js"),fonts=StageAssets.text(c,"fonts.css")${fontCache?'+scope.css(scope.families())':''};
    html=html.replaceAll("(?i)inset\\\\s*:\\\\s*0(?:px)?\\\\s*;","top:0;right:0;bottom:0;left:0;inset:0;");
    ${prepared ? 'html=ImportedContent.prepare(html,clock,fonts,"window.__m2vToken=1;",false);' : `
    String added="<script>window.__m2vToken=1;window.__m2vReady=false;</script><script>"+clock+"</script><style>"+fonts+"</style>";
@@ -64,7 +83,7 @@ public final class HostStage {
   }
   for(int i=2;i<a.length;i++){
    int[] notices={0};
-   WebResourceResponse r=StageAssets.response(c,Uri.parse(a[i])${oldResponse?'':',Boolean.parseBoolean(a[1])'}${fontNotice?',notice->notices[0]|=notice':''});
+   WebResourceResponse r=StageAssets.response(c,Uri.parse(a[i])${oldResponse?'':',Boolean.parseBoolean(a[1])'}${fontNotice?',notice->notices[0]|=notice':''}${fontCache?',scope':''});
    if(r==null){System.out.println("network");continue;}
    try(InputStream data=r.data){System.out.println(r.status+" "+r.mime+" "+notices[0]+" "+Base64.getEncoder().encodeToString(data.readAllBytes()));}
   }
@@ -75,8 +94,9 @@ public final class HostStage {
   for(const name of helpers)fs.writeFileSync(path.join(tmp,name),get(ref,javaPath+name));
   const files = ['content/Context.java','net/Uri.java','webkit/WebResourceResponse.java'].map(name => path.join(contextSource,name));
   run('java',['-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8','-d',tmp,...files,'StageAssets.java','HostStage.java',...helpers,...(imports?[imports]:[])],{cwd:tmp,stdio:'inherit'});
-  const launch=(...args)=>run('java',['-cp',tmp,'dev.motion2video.app.HostStage',assets,...args],{encoding:'utf8',maxBuffer:8*1024*1024});
-  const html=launch('document',path.join(__dirname,'fixtures/motion-video.html'));
+  const launch=(...args)=>run('java',['-cp',tmp,'dev.motion2video.app.HostStage',assets,...args],{cwd:tmp,encoding:'utf8',maxBuffer:8*1024*1024});
+  if(seed)launch('seed');
+  const html=launch('document',input);
   const ready = prepared
     ? JSON.parse(get(ref,javaPath+'ImportedContent.java').match(/READY_SCRIPT\s*=\s*("(?:[^"\\]|\\.)*")/)[1])
     : JSON.parse(previewJava.match(/evaluateJavascript\(("(?:[^"\\]|\\.)*__m2vReady=true;(?:[^"\\]|\\.)*")/)[1]);
@@ -90,12 +110,14 @@ public final class HostStage {
   return {assets,html,ready,resolve};
 }
 
-async function exercise(browser,stage,ref,exact) {
+async function exercise(browser,stage,ref,exact,cacheState) {
   const remoteOrbitron = 'https://fonts.gstatic.com/test/orbitron.ttf';
   const remoteVazirmatn = 'https://fonts.gstatic.com/test/vazirmatn.ttf';
   const unknown = 'https://fonts.googleapis.com/css2?family=UnavailableFixture';
   const mixed = unknown + '&family=Orbitron';
-  const urls = [googleURL,unknown,mixed,remoteOrbitron,remoteVazirmatn,'https://untrusted.invalid/a.css'];
+  const cairo='https://fonts.googleapis.com/css2?family=Cairo';
+  const cacheURLs=[...new Set(stage.html.match(/https:\/\/motion\.local\/cached-fonts\/[0-9a-f]{64}/g)||[])];
+  const urls = [googleURL,unknown,mixed,remoteOrbitron,remoteVazirmatn,'https://untrusted.invalid/a.css',cairo,...cacheURLs];
   for(const name of fs.readdirSync(path.join(stage.assets,'fonts')).filter(s=>s.endsWith('.ttf'))){
     urls.push('https://motion.local/fonts/'+encodeURIComponent(name));
   }
@@ -170,6 +192,20 @@ async function exercise(browser,stage,ref,exact) {
     await page.mouse.move(68,57);
     await page.waitForFunction(()=>document.querySelector('.cursor').style.left==='68px');
     const baseline={errors:[...errors],blocked:[...blocked],violations:[...violations],outbound:[...outbound]};
+    if(cacheState){
+      assert.deepEqual(outbound,[]);
+      assert.equal(policy.get(unknown).status,403);
+      if(cacheState==='hit'){
+        assert.deepEqual({errors,blocked,violations},{errors:[],blocked:[],violations:[]});
+        assert(later.fonts.includes('Cairo'));
+        assert.equal(policy.get(cairo).status,200);
+        assert(cacheURLs.some(url=>policy.get(url).status===200));
+      }else{
+        assert.equal(policy.get(cairo).status,403);
+        assert(!later.fonts.includes('Cairo'));
+        assert(blocked.some(([host,status])=>host==='fonts.googleapis.com'&&status===403));
+      }
+    }
     if(exact){
       assert(noInput,'Unexpected cursor input before mouse event');
       assert.deepEqual({errors,blocked,violations,outbound},{errors:[],blocked:[],violations:[],outbound:[]});
@@ -211,6 +247,15 @@ async function exercise(browser,stage,ref,exact) {
       const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'m2v-fixture-'));
       try{await exercise(browser,makeStage(ref,tmp),ref,ref==='worktree'&&!process.argv.includes('--observe'));}
       finally{fs.rmSync(tmp,{recursive:true,force:true});}
+    }
+    if(!process.argv.includes('--history')){
+      const variant=fixture.replace('@import url', "@import url('https://fonts.googleapis.com/css2?family=Cairo');\n  @import url")
+        .replaceAll("'Orbitron',", "'Cairo', 'Orbitron',");
+      for(const cacheState of ['miss','hit']){
+        const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'m2v-cache-fixture-'));
+        try{await exercise(browser,makeStage('worktree',tmp,variant,cacheState==='hit'),'Cairo '+cacheState,false,cacheState);}
+        finally{fs.rmSync(tmp,{recursive:true,force:true});}
+      }
     }
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
