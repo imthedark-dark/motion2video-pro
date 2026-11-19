@@ -190,12 +190,19 @@ public final class StudioActivity extends MainActivity {
    if(RenderService.busy(RenderService.latest(this)))throw new IOException("یک رندر دیگر در حال اجراست.");
    int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920}};int[] size=sizes[sizeChoice.getSelectedItemPosition()];
    JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked()).put("onlineResources",onlineResourcesAllowed);
-   pendingRender=RenderRequest.create(editor.getText().toString(),options);getPreferences(0).edit().putString("code",pendingRender.html).apply();
+   final RenderRequest candidate=RenderRequest.create(editor.getText().toString(),options);pendingRender=candidate;working=true;
+   new Thread(()->{try{CodecSupport.encoder(candidate.mime,candidate.width,candidate.height,candidate.fps,candidate.bitrate);runOnUiThread(()->{if(closed||pendingRender!=candidate)return;try{authorizeRender(candidate);}catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}});}
+    catch(Throwable unsupported){org.json.JSONObject proposed=null;if(!(unsupported instanceof OutOfMemoryError))try{proposed=CodecSupport.suggestion(candidate);}catch(Throwable ignored){}final org.json.JSONObject next=proposed;
+     runOnUiThread(()->{if(closed||pendingRender!=candidate)return;pendingRender=null;working=false;emit("error","message",PublicErrors.message(unsupported));if(next!=null&&!isFinishing())new android.app.AlertDialog.Builder(this).setTitle("پیشنهاد سازگار با دستگاه").setMessage(next.optInt("width")+" × "+next.optInt("height")+" / "+next.optInt("fps")+" FPS / "+next.optString("mime")+"\nاین پیشنهاد خودکار رندر نمی‌شود؛ پس از اعمال دوباره تبدیل را بزن.").setPositiveButton("اعمال پیشنهاد",(d,w)->{try{configure(next);emit("suggestedOptions","options",next);}catch(Exception e){emit("error","message",PublicErrors.message(e));}}).setNegativeButton("لغو",null).show();});}
+   },"codec-capability").start();
+  }catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}
+ }
+ private void authorizeRender(RenderRequest candidate)throws Exception {
+  getPreferences(0).edit().putString("code",candidate.html).apply();
    ArrayList<String> permissions=new ArrayList<>();
    if(PermissionPolicy.notifications(android.os.Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
    if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
-   if(!permissions.isEmpty()){pendingRender.write(this);working=true;requestPermissions(permissions.toArray(new String[0]),RENDER_PERMISSIONS);}else beginRender();
-  }catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}
+   if(!permissions.isEmpty()){candidate.write(this);working=true;requestPermissions(permissions.toArray(new String[0]),RENDER_PERMISSIONS);}else beginRender();
  }
  private void beginRender(){
   RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}

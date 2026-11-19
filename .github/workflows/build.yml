@@ -39,6 +39,7 @@ jobs:
       - run: python3 tools/test_platform.py
       - run: python3 tools/test_input.py
       - run: python3 tools/test_privacy.py
+      - run: python3 tools/test_features.py
       - run: python3 tools/verify_privacy.py
       - run: python3 build.py
       - run: python3 build.py --release

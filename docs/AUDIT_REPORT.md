@@ -184,3 +184,7 @@ Verified at `9bc7677`: first-party Android Java has no Log calls, printStackTrac
 | Native privacy fixture | Compiled/packaged only. Not executed; no native logcat/packet-capture/provider-behavior PASS is claimed |
 
 Native/physical acceptance and the previously recorded Phase4 advisory-feed/private-reporting gates are not resolved by these changes. Android/Chromium/vendor diagnostics, Safe Browsing, selected providers and explicitly allowed imported/standalone/external-tool traffic remain separate boundaries. No production key or new Release APK was published. Phase6 was not started.
+
+## Phase 6 baseline (before feature implementation)
+
+Audited815cb4f: existing native capability rejection but no nearest-option suggestion; single-track silent muxing; no source range; elapsed/frame progress without ETA/size; one active job plus a completion-race Intent rather than a real queue; ACTION_VIEW only; four fixed sizes/sample/draft but no Square or project-settings store. Detailed evidence/scope and pre-feature verification are in PHASE6_FEATURES.md. Phase branches are stacked; refreshed main has no unique commits relative to phase5, and merge-tree simulation exits0. No merge/main push/key generation/publication has occurred. Latest user confirmation authorizes Phase6 implementation on its own branch, with one commit per feature and a stop before Phase7.

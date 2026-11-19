@@ -48,3 +48,6 @@
 - Remove speculative studio font preconnects while keeping the required standalone CDN resources, fonts, layout, motion and render settings. Only the studio HTML asset hash/size changes; other bundled asset hashes stay unchanged.
 - Keep optional desktop FFmpeg encoding/audio/container arguments unchanged. Default diagnostic streams go to DEVNULL and failures do not dump the command; --debug explicitly restores local diagnostics. External FFmpeg protocols/OS logging are not claimed to be controlled by Android policy.
 - Native logcat/network/provider acceptance remains unverified due to the previously broken emulator. Compiled manifest flags/callback fixtures and host checks are scoped evidence, not proof of provider behavior. Phase4 advisory-feed/admin blocks remain; no production APK is published. Stop before Phase6.
+
+### Phase 6a
+Capability fallback is a proposal requiring explicit application and a new render action. Only successful codec probes are cached; no runtime benchmark or added work per frame. Production signing and publication remain owner-only.

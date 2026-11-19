@@ -191,3 +191,5 @@ Remaining setup: private vulnerability reporting is still disabled after GitHub4
 Native rendering has no project-owned upload service, analytics or crash-reporting SDK. WebView console forwarding is suppressed, public errors use reviewed fixed messages, and the manifest requests WebView metrics opt-out while keeping Safe Browsing enabled. Desktop FFmpeg diagnostics are off unless `--debug` is chosen. Drafts/cache/history remain local; Downloads remain outside private app storage.
 
 Explicit online resources can send content, standalone HTML loads CDNs, and OS/provider behavior is separate. Read the [Persian/English privacy policy](PRIVACY.md) and [evidence/limits](docs/PHASE5_PRIVACY.md). These source/host checks do not establish zero device traffic; native logging/network acceptance is still pending. No new public APK was published.
+
+Phase6 feature work is isolated on feature/phase-6; capability proposals are shown before rendering and applied only by the user. Accepted phases remain frozen on security/phase-5. See [feature audit](docs/PHASE6_FEATURES.md).
