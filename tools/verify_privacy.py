@@ -6,13 +6,17 @@ root=Path(__file__).resolve().parents[1];java=root/'app/src/main/java/dev/motion
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('--apks',action='store_true');a=p.parse_args()
 for file in java.glob('*.java'):
  text=file.read_text()
+ if file.name=='WebViewSecurity.java':
+  assert text.count('android.util.Log.d(')==1 and 'if(!debug(context))return;' in text
+  assert 'client.first+" cspDirective="+client.directive' in text
+  text=text.replace('android.util.Log.d("Motion2VideoWebView"', 'approvedDebugEvent("Motion2VideoWebView"')
  if re.search(r'\bLog\.[vdiewtf]\s*\(|printStackTrace\s*\(|System\.(out|err)\b',text):raise ValueError('Unexpected app diagnostic sink: '+file.name)
  if file.name!='PublicErrors.java' and re.search(r'\.get(?:Localized)?Message\s*\(',text):raise ValueError('Raw exception output bypasses privacy policy: '+file.name)
  if re.search(r'java\.net\.|okhttp|retrofit|crashlytics|firebase|io\.sentry|opentelemetry',text,re.I):raise ValueError('New network/telemetry dependency needs privacy review: '+file.name)
 gradle=(root/'app/build.gradle.kts').read_text()
 if re.search(r'firebase|crashlytics|sentry|analytics|opentelemetry',gradle,re.I):raise ValueError('Telemetry build dependency added')
 security=(java/'WebViewSecurity.java').read_text()
-assert 'view.setWebChromeClient(new PrivateWebChromeClient())' in security
+assert 'view.setWebChromeClient(new PrivateWebChromeClient(debug(context)))' in security
 for name in ('MainActivity.java','StudioActivity.java','OffscreenStage.java'):
  text=(java/name).read_text();assert 'WebViewSecurity.configure(' in text
  assert 'setWebChromeClient(' not in text,'WebView privacy client overwritten'

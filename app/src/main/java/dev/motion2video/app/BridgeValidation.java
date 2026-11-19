@@ -24,7 +24,7 @@ final class BridgeValidation {
     keys(o,"type","dpr","x","y","width","height","clipTop","visible");number(o,"dpr",.01,10,false);number(o,"x",-100000,100000,false);number(o,"y",-100000,100000,false);number(o,"width",1,10000,false);number(o,"height",1,10000,false);if(o.has("clipTop"))number(o,"clipTop",0,100000,false);if(o.has("visible"))bool(o,"visible");break;
    case "shareDownload":case "openDownload":keys(o,"type","uri");String uri=string(o,"uri",2048);if(!uri.startsWith("content://"))invalid();break;
    case "onlineResources":keys(o,"type","enabled");bool(o,"enabled");break;
-   case "queueState":case "resumeQueue":case "chooseAudio":case "clearAudioAssets":case "hello":case "renderState":case "downloads":case "cancel":case "capabilities":case "openDownloads":case "save":case "chooseFile":keys(o,"type");break;
+   case "about":case "troubleshooting":case "compatibility":case "queueState":case "resumeQueue":case "chooseAudio":case "clearAudioAssets":case "hello":case "renderState":case "downloads":case "cancel":case "capabilities":case "openDownloads":case "save":case "chooseFile":keys(o,"type");break;
    default:invalid();
   }return type;
  }

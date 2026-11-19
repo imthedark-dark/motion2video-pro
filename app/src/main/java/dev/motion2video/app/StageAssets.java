@@ -7,6 +7,8 @@ final class StageAssets {
  static WebResourceResponse blocked(){return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",Collections.singletonMap("Cache-Control","no-store"),new ByteArrayInputStream(new byte[0]));}
  static WebResourceResponse response(Context c,Uri uri,boolean online){
   String host=uri.getHost(),scheme=uri.getScheme(),path=uri.getPath()==null?"":uri.getPath(),asset=null,mime="application/javascript";
+  // Inline bytes are decoded by WebView. Chromium does not dispatch blob: here.
+  if("data".equals(scheme))return null;
   if(uri.getUserInfo()!=null||uri.getPort()!=-1||path.contains("..")||path.contains("\\"))return blocked();
   boolean local="https".equals(scheme)&&"motion.local".equals(host);
   boolean packaged="file".equals(scheme)&&(host==null||host.isEmpty())&&path.startsWith("/android_asset/");

@@ -11,6 +11,7 @@ public final class PublicErrors {
  // Exact matches only. Adding a new user error requires reviewing this catalogue; never use prefixes.
  private static final Set<String> KNOWN=Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
   GENERIC,MEMORY,PERMISSION,FILE,TIMEOUT,SAVE_WARNING,
+  "زمینهٔ Canvas یا WebGL از دست رفت یا ساخته نشد؛ اندازهٔ بافت‌ها و تعداد ذرات را کاهش بده و دوباره امتحان کن.",
   "پردازش قبلی کاملاً متوقف نشده است؛ برنامه را توقف اجباری و دوباره باز کن.",
   "فضای خالی برای فایل‌های صف کافی نیست.",
   "صف پر یا نامعتبر است؛ حداکثر ۸ کار و مجموع ۶۰ مگابایت HTML مجاز است.",

@@ -63,3 +63,9 @@ Phase 6 final lint review found one new flag-annotation issue and two inherited 
 Queue teardown invariant: if the encoder executor or offscreen/PixelCopy resources do not finish cleanup within existing deadlines, pause the queue and require a process restart before any new render. Ordinary cleaned-up failures still advance. This conservative gate avoids overlapping a stuck native encoder with the next queued job; it does not kill threads or alter frame timing/YUV. Native hang recovery remains device-dependent.
 
 Global foreground-service admission or queue-claim persistence failure pauses waiting jobs and stops the service instead of recursively retrying start. Claim persistence is transactional and rolls back its in-memory phase if disk commit fails. Individual request/read/render errors still advance to the next job.
+
+## Imported animation compatibility
+
+Allow only `data:` and `blob:` in offline `connect-src` so scripts can read inline bytes via Fetch/XHR. Add those local schemes to `style-src` and add `blob:` to `font-src` for generated styles and fonts. The native interceptor delegates only the non-network `data:` scheme to WebView. The trusted Studio policy, network block and host allowlist, workers/frames restriction, file/content restrictions and native bridge schema remain enforced. Chromium's existing TLS probe still checks for zero offline requests. Details and limitations are in [the animation compatibility audit](ANIMATION_COMPATIBILITY.md).
+
+The compatibility setting selects a software layer for the preview only. An incompatible WebGL animation may still need a Canvas 2D version or smaller textures. User-selected retry recreates the activity so both trusted and imported views can recover after a shared renderer exits. Diagnostics have a single debug-only Logcat sink with provider metadata, Android process status, fixed settings and enumerated error categories. No content, paths, source URLs or raw console messages enter it.

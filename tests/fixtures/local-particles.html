@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="file:///android_asset/fonts.css">
+<script src="file:///android_asset/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+<script src="file:///android_asset/vendor/lottie.min.js"></script>
+<style>
+  body { margin: 0; background: #101020; color: white; font: 20px Vazirmatn; }
+  canvas { display: inline-block; }
+</style>
+</head>
+<body>
+<canvas id="paint" width="160" height="100"></canvas><span>سلام</span>
+<script>
+window.particleRun = (async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="orange"/></svg>';
+  const response = await fetch('data:image/svg+xml,' + encodeURIComponent(svg));
+  const source = URL.createObjectURL(await response.blob());
+  const image = new Image();
+  image.src = source;
+  await image.decode();
+  URL.revokeObjectURL(source);
+  const imageBytes = URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'}));
+  await (await fetch(imageBytes)).arrayBuffer();
+  URL.revokeObjectURL(imageBytes);
+
+  const fontURL = URL.createObjectURL(new Blob([Uint8Array.from(atob(window.testFont), c => c.charCodeAt(0))], {type: 'font/ttf'}));
+  const font = await new FontFace('FixtureBlob', 'url(' + fontURL + ')').load();
+  URL.revokeObjectURL(fontURL);
+  document.fonts.add(font);
+  const paint = document.getElementById('paint').getContext('2d');
+  paint.font = '20px FixtureBlob';
+  paint.fillStyle = 'white';
+  paint.fillText('01', 6, 28);
+
+  const styleURL = URL.createObjectURL(new Blob(['canvas { vertical-align: top; }'], {type: 'text/css'}));
+  const style = document.createElement('link');
+  style.rel = 'stylesheet';
+  const styled = new Promise((resolve, reject) => {style.onload = resolve; style.onerror = reject;});
+  style.href = styleURL;
+  document.head.append(style);
+  await styled;
+  URL.revokeObjectURL(styleURL);
+
+  // Empty WebAssembly module. Does not need an external binary.
+  await WebAssembly.instantiate(Uint8Array.from([0,97,115,109,1,0,0,0]));
+  if (typeof lottie.loadAnimation !== 'function') throw Error('Lottie did not load');
+  const view = new THREE.WebGLRenderer({preserveDrawingBuffer: true});
+  view.setSize(160, 100);
+  document.body.append(view.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 10);
+  camera.position.z = 2;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([-.5,0,0, 0,0,0, .5,0,0], 3));
+  const mesh = new THREE.Points(geometry, new THREE.PointsMaterial({color: 0xff5200, size: 11, sizeAttenuation: false}));
+  scene.add(mesh);
+  window.motionTimeline = gsap.timeline({paused: true}).to(mesh.position, {x: .2, duration: 1});
+  const sample = () => {
+    paint.drawImage(image, 25, 42, 20, 20);
+    view.render(scene, camera);
+    const pixels = new Uint8Array(160 * 100 * 4);
+    const gl = view.getContext();
+    gl.readPixels(0, 0, 160, 100, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const centroid = pixels.reduce((sum, value, index) => index % 4 === 0 && value > 200 ? sum + (index / 4 % 160) : sum, 0);
+    return {centroid, canvas: paint.getImageData(32, 48, 1, 1).data[0], particles: pixels.filter((v, i) => i % 4 === 0 && v > 200).length};
+  };
+  await new Promise(requestAnimationFrame);
+  window.firstFrame = sample();
+  window.motionTimeline.time(1);
+  await new Promise(requestAnimationFrame);
+  window.secondFrame = sample();
+  window.fixtureGL = view.domElement;
+})().catch(error => {console.error(error);window.particleError = error.name;});
+</script>
+</body>
+</html>

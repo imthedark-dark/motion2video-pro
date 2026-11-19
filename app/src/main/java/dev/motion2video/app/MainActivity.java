@@ -2,6 +2,7 @@ package dev.motion2video.app;
 import android.app.*;import android.os.*;import android.content.*;import android.graphics.*;import android.graphics.drawable.GradientDrawable;import android.view.*;import android.webkit.*;import android.widget.*;import android.net.Uri;import java.io.*;import java.nio.charset.StandardCharsets;import java.util.concurrent.*;
 public class MainActivity extends Activity {
  protected volatile boolean onlineResourcesAllowed,stageFailed;
+ private boolean contextReported,recoveryShown;
  private final Handler previewMonitor=new Handler(Looper.getMainLooper());
  protected Spinner codecChoice,sizeChoice,quality;protected CheckBox gpu;protected ScrollView workspace;protected int exportWidth=640,exportHeight=360;protected String resultMime="video/mp4",resultExt="mp4";protected long loadToken;
  protected WebView stage;protected EditText editor,duration;protected Spinner fps;protected TextView status,render;protected volatile boolean cancelled,working;protected File result;protected int generation;protected String savedCode="";
@@ -14,13 +15,13 @@ public class MainActivity extends Activity {
   if(Build.VERSION.SDK_INT>=30){getWindow().setDecorFitsSystemWindows(false);root.setOnApplyWindowInsetsListener((v,i)->{android.graphics.Insets a=i.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());root.setPadding(dp(12)+a.left,dp(8)+a.top,dp(12)+a.right,dp(8)+a.bottom);return i;});root.requestApplyInsets();}
   root.addView(text("MOTION2VIDEO PRO  ▶",24));root.addView(text("استودیو HTML → MP4 • خروجی H.264 بدون صدا",12));
   ScrollView scroll=new ScrollView(this);workspace=scroll;LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-  stage=new WebView(this);stage.setBackgroundColor(Color.BLACK);stage.setLayerType(View.LAYER_TYPE_HARDWARE,null);stage.getSettings().setJavaScriptEnabled(true);stage.getSettings().setAllowFileAccess(false);stage.getSettings().setAllowContentAccess(false);stage.getSettings().setDomStorageEnabled(false);stage.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+  stage=new WebView(this);stage.setBackgroundColor(Color.BLACK);applyPreviewLayer();stage.getSettings().setJavaScriptEnabled(true);stage.getSettings().setAllowFileAccess(false);stage.getSettings().setAllowContentAccess(false);stage.getSettings().setDomStorageEnabled(false);stage.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
   WebViewSecurity.configure(stage,this,false);WebViewSecurity.network(stage,false);
   stage.setWebViewClient(new WebViewClient(){
    @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest request){return StageAssets.response(MainActivity.this,request.getUrl(),onlineResourcesAllowed);}
-   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){if(stageFailed)return true;stageFailed=true;cancelled=true;if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();onStageRendererGone();return true;}
+   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){if(stageFailed)return true;WebViewSecurity.rendererExit(v,MainActivity.this,detail,onlineResourcesAllowed,false);stageFailed=true;cancelled=true;if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();onStageRendererGone();return true;}
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
-   @Override public void onPageFinished(WebView v,String url){stage.evaluateJavascript("window.__m2vReady=false;Promise.all([document.fonts?document.fonts.ready:Promise.resolve(),...['Vazirmatn','Amiri','Noto Naskh Arabic','Scheherazade New','Anton','Inter'].map(f=>document.fonts.load('16px \"'+f+'\"')),...Array.from(document.images).map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=i.onerror=r}))]).then(()=>{window.__m2vReady=true;});",null);onStagePageFinished();}
+   @Override public void onPageFinished(WebView v,String url){if(stageFailed||isDestroyed())return;v.evaluateJavascript(ImportedContent.READY_SCRIPT,null);onStagePageFinished();}
   });
   body.addView(stage,new LinearLayout.LayoutParams(-1,dp(210)));stage.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{int h=(r-l)*exportHeight/exportWidth;if(h>0&&stage.getLayoutParams().height!=h){stage.getLayoutParams().height=h;stage.requestLayout();}});
   row(body,button("آپلود HTML",()->{if(working)return;Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,1);}),button("نمونهٔ ۱۴ ثانیه‌ای",()->{if(!working){editor.setText(asset("preset.html"));duration.setText("14");preview();}}));
@@ -37,27 +38,62 @@ public class MainActivity extends Activity {
   status=text("خروجی مستقیم MP4 است؛ کیفیت و سرعت به کدگذار گوشی بستگی دارد.",13);body.addView(status);
   video=new VideoView(this);body.addView(video,new LinearLayout.LayoutParams(-1,dp(190)));video.setVisibility(View.GONE);MediaController controls=new MediaController(this);controls.setAnchorView(video);video.setMediaController(controls);
   row(body,button("ذخیرهٔ ویدیو",()->{if(result==null||!result.isFile()){status.setText("اول یک خروجی بساز.");return;}Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(resultMime);i.putExtra(Intent.EXTRA_TITLE,"motion-"+System.currentTimeMillis()+"."+resultExt);startActivityForResult(i,2);}));
-  body.addView(text("موشن باید مستقل باشد. GSAP و CSS قابل زمان‌بندی‌اند؛ صدا، WebGL و تایمرهای دلخواه تضمین نمی‌شوند. فایل‌های دارای CDN ممکن است اینترنت بخواهند. هنگام رندر برنامه را باز نگه دار.",12));preview();
+  body.addView(text("موشن باید مستقل باشد. GSAP و CSS قابل زمان‌بندی‌اند؛ صدا، WebGL و تایمرهای دلخواه تضمین نمی‌شوند. فایل‌های دارای CDN ممکن است اینترنت بخواهند. هنگام رندر برنامه را باز نگه دار.",12));if(!(this instanceof StudioActivity))preview();
  }
  protected String asset(String name){try(InputStream in=getAssets().open(name)){return read(in,4*1024*1024);}catch(Exception e){return "";}}
  protected volatile boolean importing;
  protected static String read(InputStream in,int max)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){if(out.size()+n>max)throw new IOException("فایل بیش از حد بزرگ است");out.write(b,0,n);}return out.toString("UTF-8");}
- protected void preview(){if(stageFailed){onRenderError(WebViewSecurity.RENDERER_ERROR);return;}generation++;savedCode=editor.getText().toString();String code=savedCode.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;", "top:0;right:0;bottom:0;left:0;inset:0;");String fonts="<script>window.__m2vToken="+generation+";window.__m2vReady=false;</script><script>"+asset("motion-clock.js")+"</script><style>"+asset("fonts.css")+"</style>";int head=code.toLowerCase(java.util.Locale.ROOT).indexOf("</head>");code=head>=0?code.substring(0,head)+fonts+code.substring(head):fonts+code;stage.loadDataWithBaseURL("https://motion.local/",ImportedContent.secure(code,onlineResourcesAllowed),"text/html","UTF-8",null);getPreferences(0).edit().putString("code",savedCode).apply();previewMonitor.removeCallbacksAndMessages(null);monitorPreview(generation);}
+ protected void preview(){if(stageFailed){onRenderError(WebViewSecurity.RENDERER_ERROR);return;}generation++;savedCode=editor.getText().toString();String code=savedCode.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;", "top:0;right:0;bottom:0;left:0;inset:0;");contextReported=false;WebViewSecurity.resetDiagnostics(stage);String prepared=ImportedContent.prepare(code,asset("motion-clock.js"),asset("fonts.css"),"window.__m2vToken="+generation+";",onlineResourcesAllowed);getPreferences(0).edit().putString("code",savedCode).apply();stage.loadDataWithBaseURL("https://motion.local/",prepared,"text/html","UTF-8",null);previewMonitor.removeCallbacksAndMessages(null);monitorPreview(generation);}
  private void monitorPreview(int token){
   if(isDestroyed()||stageFailed||token!=generation)return;
   if(working){previewMonitor.postDelayed(()->monitorPreview(token),RenderBudget.STALL_MS);return;}
   final boolean[] answered={false};
-  try{stage.evaluateJavascript("true",value->{if(answered[0]||stageFailed||token!=generation)return;answered[0]=true;previewMonitor.postDelayed(()->monitorPreview(token),RenderBudget.STALL_MS);});}catch(RuntimeException ignored){}
-  previewMonitor.postDelayed(()->{
+  Runnable timeout=()->{
    if(answered[0]||isDestroyed()||stageFailed||token!=generation)return;
    if(working){answered[0]=true;monitorPreview(token);return;}
-   stageFailed=true;cancelled=true;
-   if(Build.VERSION.SDK_INT>=29)try{WebViewRenderProcess process=stage.getWebViewRenderProcess();if(process!=null)process.terminate();}catch(RuntimeException ignored){}
-   if(stage.getParent() instanceof ViewGroup)((ViewGroup)stage.getParent()).removeView(stage);
-   try{stage.destroy();}catch(RuntimeException ignored){}onStageRendererGone();
-   if(!isFinishing())try{new AlertDialog.Builder(this).setTitle("پیش‌نمایش متوقف شد").setMessage("کد موشن پاسخ نداد. برنامه را دوباره باز کن و حلقه‌ها یا کد سنگین HTML را اصلاح کن.").setPositiveButton("باشه",null).show();}catch(RuntimeException ignored){}
-  },RenderBudget.STALL_MS);
+   stopUnresponsivePreview();
+  };
+  try{stage.evaluateJavascript(ImportedContent.CONTEXT_CHECK,value->{
+   if(answered[0]||stageFailed||token!=generation)return;
+   answered[0]=true;previewMonitor.removeCallbacks(timeout);
+   if("true".equals(value)&&!contextReported){contextReported=true;onStageContextLost();}
+   previewMonitor.postDelayed(()->monitorPreview(token),1500);
+  });}catch(RuntimeException ignored){}
+  previewMonitor.postDelayed(timeout,RenderBudget.STALL_MS);
  }
+ private void stopUnresponsivePreview(){
+  WebViewSecurity.watchdog(stage,this,onlineResourcesAllowed);
+  stageFailed=true;cancelled=true;
+  if(Build.VERSION.SDK_INT>=29)try{WebViewRenderProcess process=stage.getWebViewRenderProcess();if(process!=null)process.terminate();}catch(RuntimeException ignored){}
+  if(stage.getParent() instanceof ViewGroup)((ViewGroup)stage.getParent()).removeView(stage);
+  stage.destroy();
+  showRendererRecovery("پیش‌نمایش در ۴۵ ثانیه پاسخ نداد. حلقه‌های کد، اندازهٔ بافت‌ها و تعداد ذرات را بررسی کن.");
+ }
+ protected boolean softwarePreview(){return getPreferences(0).getBoolean("software_preview",false);}
+ protected void setSoftwarePreview(boolean enabled){
+  getPreferences(0).edit().putBoolean("software_preview",enabled).apply();
+  if(!stageFailed)applyPreviewLayer();
+ }
+ private void applyPreviewLayer(){stage.setLayerType(softwarePreview()?View.LAYER_TYPE_SOFTWARE:View.LAYER_TYPE_HARDWARE,null);}
+ protected void showRendererRecovery(String reason){
+  if(recoveryShown||isFinishing()||isDestroyed())return;
+  recoveryShown=true;
+  AlertDialog dialog=new AlertDialog.Builder(this).setTitle("نمایش موشن متوقف شد").setMessage(reason)
+   .setPositiveButton("تلاش دوباره",(d,w)->recreate())
+   .setNeutralButton("تلاش نرم‌افزاری",(d,w)->{setSoftwarePreview(true);recreate();})
+   .setNegativeButton("عیب‌یابی",null).setCancelable(false).create();
+  dialog.show();
+  dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v->showTroubleshooting());
+ }
+ protected void showTroubleshooting(){
+  new AlertDialog.Builder(this).setTitle("عیب‌یابی موشن").setMessage(
+   "۱. Android System WebView و Chrome را به‌روز کن.\n۲. موشن را با ذرات و بافت‌های کوچک‌تر امتحان کن.\n۳. حالت نرم‌افزاری برای Canvas دوبعدی است؛ بعضی موشن‌های WebGL در این حالت نمایش داده نمی‌شوند.\n۴. اگر فایل منبع بیرونی دارد، نسخهٔ مستقل آن را بگیر. Worker در فایل واردشده پشتیبانی نمی‌شود.\n\nWebView: "+WebViewSecurity.provider())
+   .setPositiveButton("بازگشت",null).show();
+ }
+ protected void showAbout(){
+  new AlertDialog.Builder(this).setTitle("دربارهٔ Motion2Video Pro").setMessage("Android System WebView\n"+WebViewSecurity.provider()).setPositiveButton("بازگشت",null).show();
+ }
+ protected void onStageContextLost(){onRenderError(ImportedContent.CONTEXT_ERROR);}
  protected <T>T ui(Callable<T> call)throws Exception{FutureTask<T> task=new FutureTask<>(call);runOnUiThread(task);return task.get(15,TimeUnit.SECONDS);}
  protected String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();runOnUiThread(()->{if(isDestroyed()||stageFailed){f.completeExceptionally(new IOException("صفحه بسته شد"));return;}stage.evaluateJavascript(script,f::complete);});return f.get(15,TimeUnit.SECONDS);}
  protected Bitmap frame(double time)throws Exception{
@@ -85,7 +121,7 @@ public class MainActivity extends Activity {
  @Override protected void onStop(){if(working)cancelled=true;super.onStop();}
  @Override protected void onDestroy(){previewMonitor.removeCallbacksAndMessages(null);cancelled=true;video.stopPlayback();if(!stageFailed)stage.destroy();super.onDestroy();}
  protected void onStagePageFinished(){}
- protected void onStageRendererGone(){if(status!=null)status.setText(WebViewSecurity.RENDERER_ERROR);onRenderError(WebViewSecurity.RENDERER_ERROR);}
+ protected void onStageRendererGone(){if(status!=null)status.setText(WebViewSecurity.RENDERER_ERROR);showRendererRecovery(WebViewSecurity.RECOVERY_HINT);}
  protected void onRenderProgress(int done,int total){}
  protected void onRenderResult(File file){}
  protected void onRenderError(String error){}

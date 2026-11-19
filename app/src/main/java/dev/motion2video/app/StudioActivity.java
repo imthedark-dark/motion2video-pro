@@ -62,7 +62,7 @@ public final class StudioActivity extends MainActivity {
     return StageAssets.blocked();
    }
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
-   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){studioFailed=true;bridgeReady=false;if(pendingRender!=null){try{RenderRequest.file(StudioActivity.this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;}if(port!=null){port.close();port=null;}RenderService.rendererGone(StudioActivity.this);if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();if(!isFinishing())new android.app.AlertDialog.Builder(StudioActivity.this).setTitle("خطای نمایش برنامه").setMessage(WebViewSecurity.RENDERER_ERROR).setPositiveButton("بستن صفحه",(d,w)->finish()).setCancelable(false).show();return true;}
+   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){WebViewSecurity.rendererExit(v,StudioActivity.this,detail,false,true);studioFailed=true;bridgeReady=false;if(pendingRender!=null){try{RenderRequest.file(StudioActivity.this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;}if(port!=null){port.close();port=null;}cancelRenderAfterRendererExit();if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();showRendererRecovery(WebViewSecurity.RECOVERY_HINT);return true;}
    @Override public void onPageStarted(WebView v,String url,Bitmap icon){if(url.equals(ORIGIN+"/index.html")){bridgeReady=false;if(port!=null){port.close();port=null;}}}
    @Override public void onPageFinished(WebView view,String url){
     if(!url.equals(ORIGIN+"/index.html"))return;
@@ -107,7 +107,20 @@ public final class StudioActivity extends MainActivity {
   if(closed||studioFailed||raw==null||raw.length()>ImportPolicy.MAX_JSON_BYTES)return;
   try{
    JSONObject m=new JSONObject(raw);String type=BridgeValidation.command(m);
-   if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed);emitDownloads();renderState(state);return;}
+   if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed,"software",softwarePreview());emitDownloads();renderState(state);return;}
+   if(type.equals("about")){showAbout();return;}
+   if(type.equals("troubleshooting")){showTroubleshooting();return;}
+   if(type.equals("compatibility")){
+    if(working||saving||pendingRender!=null)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");
+    new android.app.AlertDialog.Builder(this).setTitle("حالت سازگاری پیش‌نمایش")
+     .setSingleChoiceItems(new String[]{"گرافیکی (پیش‌فرض)","نرم‌افزاری (Canvas دوبعدی)"},softwarePreview()?1:0,(dialog,choice)->{
+      dialog.dismiss();
+      setSoftwarePreview(choice==1);
+      emit("compatibility","software",softwarePreview());
+      if(stageFailed)recreate();else preview();
+     }).setNegativeButton("لغو",null).show();
+    return;
+   }
    if(type.equals("queueState")){emit("queueState","items",RenderQueue.snapshot(this));return;}
    if(type.equals("cancelQueued")){RenderService.cancelQueued(this,m.getString("id"));emit("queueState","items",RenderQueue.snapshot(this));return;}
    if(type.equals("resumeQueue")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");final boolean online=onlineResourcesAllowed;new Thread(()->{try{RenderQueue.resume(this,online);runOnUiThread(this::startQueueWithPermissions);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}},"queue-resume").start();return;}
@@ -166,7 +179,14 @@ public final class StudioActivity extends MainActivity {
   onlinePrompt=true;
   new android.app.AlertDialog.Builder(this).setTitle("اجازهٔ منابع آنلاین؟").setMessage("کد واردشده می‌تواند به سرورهای اینترنتی درخواست بفرستد و محتوای شما را ارسال کند. این اجازه فقط برای همین بار بازبودن برنامه است. فقط برای کد مورد اعتماد فعال کن.").setPositiveButton("اجازه می‌دهم",(d,w)->{onlineResourcesAllowed=true;WebViewSecurity.network(stage,true);}).setNegativeButton("لغو",null).setOnDismissListener(d->{onlinePrompt=false;emit("onlineResources","enabled",onlineResourcesAllowed);}).show();
  }
- @Override protected void onStageRendererGone(){RenderService.rendererGone(this);emit("error","message",WebViewSecurity.RENDERER_ERROR);}
+ private void cancelRenderAfterRendererExit(){
+  if(RenderService.busy(RenderService.latest(this)))RenderService.rendererGone(this);
+ }
+ @Override protected void onStageRendererGone(){
+  cancelRenderAfterRendererExit();
+  showRendererRecovery(WebViewSecurity.RECOVERY_HINT);
+ }
+ @Override protected void onStageContextLost(){emit("commandError","message",ImportedContent.CONTEXT_ERROR);}
  @Override protected void onRenderProgress(int done,int total){emit("progress","done",done,"total",total);}
  @Override protected void onRenderResult(File file){exportPath="/exports/"+UUID.randomUUID()+"."+resultExt;emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length());saveCurrent();}
  private void emitDownloads(){emit("downloads","items",downloads.list(),"folder",DownloadRepository.RELATIVE);}
@@ -250,7 +270,7 @@ public final class StudioActivity extends MainActivity {
    emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length(),"options",s.optJSONObject("options"),"elapsedMs",s.optLong("elapsedMs"),"frames",s.optInt("total"));
    JSONObject item=s.optJSONObject("download");if(item!=null){savedSource=file.getAbsolutePath();savedDownload=item;emit("saved","item",item);}else if(s.has("warning"))emit("downloadError","message",s.optString("warning"));
    emitDownloads();
-  }else if(phase.equals("cancelled"))emit("cancelled");else emit("error","message",s.optString("message","رندر متوقف شد."));
+  }else if(phase.equals("cancelled"))emit("cancelled");else{String message=s.optString("message","رندر متوقف شد.");emit("error","message",message);if(WebViewSecurity.RENDERER_ERROR.equals(message)&&!s.optString("id").equals(getPreferences(0).getString("last_renderer_notice",""))){getPreferences(0).edit().putString("last_renderer_notice",s.optString("id")).apply();showRendererRecovery(WebViewSecurity.RECOVERY_HINT);}}
  }
  @Override protected void onStart(){super.onStart();RenderService.addListener(renderListener);if(bridgeReady)renderState(RenderService.latest(this));}
  @Override protected void onStop(){RenderService.removeListener(renderListener);super.onStop();}
