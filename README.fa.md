@@ -13,7 +13,7 @@
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[دریافت APK اندروید](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.1/downloads/Motion2Video-1.4.1-Dark.apk) · [همهٔ فایل‌های انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
+[دریافت APK اندروید](https://github.com/imthedark-dark/motion2video-pro/releases/download/v1.4.1/Motion2Video-1.4.1-Dark.apk) · [همهٔ فایل‌های انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
 
 [معرفی](#overview) · [شروع سریع](#quick-start) · [دانلودها](#downloads) · [ساخت از سورس](#build) · [وضعیت آزمون‌ها](#validation)
 

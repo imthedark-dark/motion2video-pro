@@ -3,8 +3,8 @@
 Current packaged version: **1.4.1**. It adds license notices and documentation to the unchanged v1.4 rendering implementation. Previous immutable APKs/tags are retained.
 
 - [Release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
-- [Direct APK for ADM](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.1/downloads/Motion2Video-1.4.1-Dark.apk)
-- [Tagged SHA256SUMS.txt](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.1/downloads/SHA256SUMS.txt)
+- [Direct APK for ADM](https://github.com/imthedark-dark/motion2video-pro/releases/download/v1.4.1/Motion2Video-1.4.1-Dark.apk)
+- [Tagged SHA256SUMS.txt](https://github.com/imthedark-dark/motion2video-pro/releases/download/v1.4.1/SHA256SUMS.txt)
 
 `downloads/` contains the signed distributable, not a private signing key. The published APK keeps the signing certificate used for previous versions; independently generated CI debug artifacts have a different local key.
 
@@ -42,6 +42,8 @@ This certificate digest is public metadata, not the private key. A matching dige
 
 ## Release attachment status
 
-The release notes provide working direct APK/checksum links. The `uploads.github.com` asset upload operation returned **HTTP 401** in this publishing environment, so native GitHub Release asset attachments are **not** marked complete. No credential was included in source to work around this restriction. A maintainer with functioning asset-upload authentication can attach the exact files from `downloads/` through GitHub's release editor; do not rebuild or replace the signed bytes for that purpose.
+**Complete for v1.4.1.** The native APK and SHA256SUMS.txt assets are attached to the GitHub Release. The [release-assets workflow](../.github/workflows/release-assets.yml) uploaded the existing signed bytes with GitHub's built-in token and downloaded them again for verification. [Successful publishing run](https://github.com/imthedark-dark/motion2video-pro/actions/runs/44442997677).
 
-Keeping the download route explicit also matters for statistics: raw downloads are not represented by GitHub's release-asset download counter.
+An independent public HTTP download returned 200 for both assets and matched the committed bytes. The APK is 1,965,306 bytes. No rebuild, replacement private key or external credential was needed. The earlier local `uploads.github.com` HTTP 401 restriction was resolved by publishing inside GitHub Actions.
+
+Maintainers can run the workflow manually for an existing semantic release tag. It verifies the committed checksum, refuses to overwrite mismatching existing assets and checks downloaded uploaded files. The raw tagged download remains a fallback; its downloads are not included in Release-asset counters.

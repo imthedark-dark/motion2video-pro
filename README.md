@@ -13,7 +13,7 @@
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[Download Android APK](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.1/downloads/Motion2Video-1.4.1-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
+[Download Android APK](https://github.com/imthedark-dark/motion2video-pro/releases/download/v1.4.1/Motion2Video-1.4.1-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
 
 [Overview](#overview) · [Quick start](#quick-start) · [Downloads](#downloads) · [Build](#build) · [Validation](#validation)
 

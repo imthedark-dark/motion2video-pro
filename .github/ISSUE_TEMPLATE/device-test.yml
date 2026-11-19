@@ -1,0 +1,43 @@
+name: Physical Android device test
+description: Record a reproducible real-device test, including failures
+title: "[Device test] "
+body:
+  - type: markdown
+    attributes:
+      value: "Use the device checklist in docs/DEVICE_TEST.fa.md. Do not include device identifiers, private HTML, tokens or private links."
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Test environment
+      options:
+        - Physical Android phone or tablet
+        - Emulator (will not count as physical-device acceptance)
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Model, Android/API and WebView version
+      placeholder: "Model / Android version / WebView version; no unique identifiers"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version and APK SHA-256
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Animation, output settings and exact steps
+      description: Include duration, codec, dimensions, FPS, bitrate and software/GPU path. Share only public-safe HTML.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Observed result and evidence
+      description: Record playback, Home/Activity removal, screen lock, notification, saved path and cancellation separately. Describe failures and anything not tested. Include frame count/duration if measured.
+    validations:
+      required: true

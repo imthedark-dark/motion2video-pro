@@ -22,7 +22,7 @@ This is a prioritized plan, not a delivery-date commitment or a list of finished
 | Priority | Work | Acceptance evidence needed |
 | --- | --- | --- |
 | 1 | Physical-device reliability and background behavior | Reports across Android versions/vendors covering screen off, app switching, Activity removal, permission denial, low storage, cancellation and interruption |
-| 1 | Distribution and dependency hygiene | Verified APK + checksum attached directly to Releases when upload access is available; required notices retained in subsequent builds; pinned dependency review |
+| 1 | Distribution and dependency hygiene | v1.4.1 APK + checksum now attached and checked; retain that verified process for later releases; required notices retained in subsequent builds; pinned dependency review |
 | 2 | Broader output quality/capability coverage | Decode and frame-count checks at 720p/1080p/portrait and 30/60fps; device-specific codec results; fonts/color comparisons |
 | 2 | Better failure and resource handling | Reproducible memory/thermal/timeout failures, clear UI recovery, no orphaned temporary files or stuck progress |
 | 3 | Audio export design and implementation | Explicit timing/mixing model, synchronization tests and codec/container compatibility; no audio support claimed until implemented |
