@@ -29,7 +29,7 @@ final class RenderEngine {
    Future<?>[] fences={CompletableFuture.completedFuture(null),CompletableFuture.completedFuture(null)};
    for(int i=0;i<request.frames;i++){
     budget.progress(android.os.SystemClock.elapsedRealtime());int slot=i%buffers.length;fences[slot].get(45,TimeUnit.SECONDS);active(cancelled);
-    stage.capture((double)i/request.fps,i,buffers[slot]);active(cancelled);
+    stage.capture(request.rangeStart+(double)i/request.fps,i,buffers[slot]);active(cancelled);
     final int frame=i;final Bitmap bitmap=buffers[slot];
     fences[slot]=encoding.submit(()->{try{active(cancelled);encoder[0].frame(bitmap,(long)frame*1000000/request.fps);progress.frame(frame+1,request.frames);}catch(Exception e){throw new CompletionException(e);}});
    }

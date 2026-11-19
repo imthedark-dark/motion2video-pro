@@ -32,3 +32,6 @@ Added a closed shareDownload command, generated-name/canonical-parent validation
 Appended Square 1080×1080 to all native/schema/UI size sets without shifting default indices. Explicit Story/Reels/YouTube/Square presets affect size only. Named settings use a bounded local array (20 entries, 64-character names, 64KB read ceiling), safe option text, strict revalidation on load and rollback on invalid data. No HTML, audio reference or online consent persists in project settings; existing draft autosave is unchanged.
 
 6g validation: full debug/release and feature-check suite PASS; 195 request/bridge cases include all five sizes. UI tests apply Square, preserve fps/bitrate, safely display a markup-like project name, save/load/delete settings and check excluded sensitive fields. No physical-device claim.
+
+## 6c — render range
+Validated paired numeric source bounds, at least one frame, inside 1–300s configured/detected source duration. Requests persist optional bounds, suggestions preserve them, capture offsets only; output timestamps and full-range frame count remain unchanged. Browser playback seeks to start and records the selected span. Full suite (debug/unsigned release, UI/clock/YUV and all host/security checks) PASS, including 214 range/default/schema cases. Actual sample timing on phones remains pending.

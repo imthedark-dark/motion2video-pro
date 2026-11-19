@@ -11,6 +11,7 @@ public final class PublicErrors {
  // Exact matches only. Adding a new user error requires reviewing this catalogue; never use prefixes.
  private static final Set<String> KNOWN=Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
   GENERIC,MEMORY,PERMISSION,FILE,TIMEOUT,SAVE_WARNING,
+  "بازهٔ رندر معتبر نیست؛ شروع و پایان را در مدت موشن انتخاب کن.",
   "HTML یا دارایی‌های آن آماده نشدند.",
   "HTML، قلم‌ها یا اتصال ساعت رندر آماده نشد.",
   "اجرای موشن بیش از حد متوقف مانده است؛ کد یا منابع آن را بررسی کن.",

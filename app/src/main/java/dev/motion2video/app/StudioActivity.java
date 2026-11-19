@@ -31,6 +31,7 @@ public final class StudioActivity extends MainActivity {
  private boolean bridgeReady,studioFailed,onlinePrompt;
  private String presentedJob="";
  private RenderRequest pendingRender;
+ private JSONObject advancedOptions=new JSONObject();
  private final RenderService.Listener renderListener=this::renderState;
 
  @Override public void onCreate(Bundle state){
@@ -126,6 +127,7 @@ public final class StudioActivity extends MainActivity {
   }catch(OutOfMemoryError memory){memoryError();}catch(Exception e){emit(working?"commandError":"error","message","درخواست معتبر نیست؛ نوع و تنظیمات ورودی را بررسی کن.");}
  }
  private void configure(JSONObject o)throws Exception{
+  advancedOptions=new JSONObject();for(String key:new String[]{"rangeStart","rangeEnd"})if(o.has(key))advancedOptions.put(key,o.get(key));
   double sec=o.getDouble("duration");int rate=o.getInt("fps"),w=o.getInt("width"),h=o.getInt("height"),bits=o.getInt("bitrate");String mime=o.getString("mime");
   if(!Double.isFinite(sec)||sec<1||sec>300||(rate!=30&&rate!=60)||(bits!=12000000&&bits!=16000000&&bits!=20000000))throw new IOException("تنظیمات رندر معتبر نیست.");
   int size=-1;int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}};
@@ -190,6 +192,7 @@ public final class StudioActivity extends MainActivity {
    if(RenderService.busy(RenderService.latest(this)))throw new IOException("یک رندر دیگر در حال اجراست.");
    int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}};int[] size=sizes[sizeChoice.getSelectedItemPosition()];
    JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked()).put("onlineResources",onlineResourcesAllowed);
+   for(String key:new String[]{"rangeStart","rangeEnd"})if(advancedOptions.has(key))options.put(key,advancedOptions.get(key));
    final RenderRequest candidate=RenderRequest.create(editor.getText().toString(),options);pendingRender=candidate;working=true;
    new Thread(()->{try{CodecSupport.encoder(candidate.mime,candidate.width,candidate.height,candidate.fps,candidate.bitrate);runOnUiThread(()->{if(closed||pendingRender!=candidate)return;try{authorizeRender(candidate);}catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}});}
     catch(Throwable unsupported){org.json.JSONObject proposed=null;if(!(unsupported instanceof OutOfMemoryError))try{proposed=CodecSupport.suggestion(candidate);}catch(Throwable ignored){}final org.json.JSONObject next=proposed;

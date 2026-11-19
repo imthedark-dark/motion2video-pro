@@ -51,3 +51,5 @@
 
 ### Phase 6a
 Capability fallback is a proposal requiring explicit application and a new render action. Only successful codec probes are cached; no runtime benchmark or added work per frame. Production signing and publication remain owner-only.
+
+Phase 6c: source capture uses rangeStart + i/fps; output PTS stays i*1e6/fps. Span must contain at least one frame. Dynamic scripts with unknowable duration use the user-confirmed duration bound; no claim of inferring all JavaScript time.
