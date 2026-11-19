@@ -209,3 +209,7 @@ Optional Android audio accepts MP3/AAC/WAV/M4A (≤100 MiB, ≤30 min, mono/ster
 Batch render queue: choose up to 8 HTML files (≤60 MiB source total) with an immutable snapshot of current settings for each job. The existing foreground service runs one at a time; ordinary job failure/cancel continues the rest. Pending jobs can be cancelled individually. Process death/Android quota pauses waiting jobs until Resume; prior-session online permission is never restored automatically. Queue history is capped at 24, and old private previews may be evicted (approximately 1 GiB queue cache target); saved Downloads remain independent.
 
 Queue retention detail: the ~1GiB private-preview target evicts only outputs already saved to public Downloads. Unsaved outputs are retained while in the bounded history (up to 24); they remain temporary Android cache and can still be lost to cache clearing/eviction. Queue jobs preflight estimated disk space; missing storage permission does not silently mark a video saved.
+
+### Offline Google Fonts on Android
+
+The Studio shows a Persian font summary before preview or export. For missing faces referenced by a static Google Fonts stylesheet, the native dialog can download a copy to private storage for later offline use. Use **فونت‌ها** to see the size, delete fonts, clear approvals or disable the feature. [Font consent, limits and privacy](docs/FONTS.md)

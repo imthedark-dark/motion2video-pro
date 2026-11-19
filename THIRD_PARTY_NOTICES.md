@@ -17,3 +17,5 @@ Phase 2 adds AndroidX Core 1.13.1 (including FileProvider) and its AndroidX/Kotl
 Phase 4 records exact versions, notice paths and asset SHA-256/sizes in `DEPENDENCIES.lock.json` (schema2); `tools/verify_dependencies.py` enforces the inventory, font name-table versions and embedded UI GSAP copy. No bundled library/font bytes were upgraded. GSAP's custom restrictions and unresolved historical-grant/redistribution questions remain flags for maintainer review; this inventory is not legal advice or written clearance. OWASP Dependency-Check13.0.0 is isolated external audit tooling, not APK runtime code.
 
 Orbitron 2.001 is bundled unchanged from the pinned Google Fonts source in `DEPENDENCIES.lock.json`. Copyright 2018 The Orbitron Project Authors, with Reserved Font Name “Orbitron”. The SIL Open Font License 1.1 is included in `app/src/main/assets/fonts/orbitron-OFL.txt`.
+
+Fonts a user chooses to download from Google Fonts go into that user's private device cache. They keep their upstream licenses. The app does not assign a license from the CSS response or apply the project's MIT license to those font bytes. [Font handling](docs/LICENSING.md)
