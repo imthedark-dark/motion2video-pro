@@ -4,6 +4,7 @@ public class MainActivity extends Activity {
  protected volatile boolean onlineResourcesAllowed,stageFailed;
  private boolean contextReported,recoveryShown;
  private int fontNotices;
+ private volatile FontCache.Scope stageFonts;
  private final Handler previewMonitor=new Handler(Looper.getMainLooper());
  protected Spinner codecChoice,sizeChoice,quality;protected CheckBox gpu;protected ScrollView workspace;protected int exportWidth=640,exportHeight=360;protected String resultMime="video/mp4",resultExt="mp4";protected long loadToken;
  protected WebView stage;protected EditText editor,duration;protected Spinner fps;protected TextView status,render;protected volatile boolean cancelled,working;protected File result;protected volatile int generation;protected String savedCode="";
@@ -26,7 +27,7 @@ public class MainActivity extends Activity {
      notice->{
       if((notice&StageAssets.FONT_BLOCKED)!=0)diagnostics.blocked(url);
       previewMonitor.post(()->{if(!isDestroyed()&&!stageFailed&&token==generation)reportFontNotice(notice);});
-     });
+     },stageFonts);
     if(response!=null&&response.getStatusCode()==403)diagnostics.blocked(url);
     return response;
    }
@@ -54,7 +55,27 @@ public class MainActivity extends Activity {
  protected String asset(String name){try(InputStream in=getAssets().open(name)){return read(in,4*1024*1024);}catch(Exception e){return "";}}
  protected volatile boolean importing;
  protected static String read(InputStream in,int max)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){if(out.size()+n>max)throw new IOException("فایل بیش از حد بزرگ است");out.write(b,0,n);}return out.toString("UTF-8");}
- protected void preview(){if(stageFailed){onRenderError(WebViewSecurity.RENDERER_ERROR);return;}generation++;savedCode=editor.getText().toString();String code=savedCode.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;", "top:0;right:0;bottom:0;left:0;inset:0;");contextReported=false;fontNotices=0;onFontNotice(0);WebViewSecurity.resetDiagnostics(stage);String prepared=ImportedContent.prepare(code,asset("motion-clock.js"),asset("fonts.css"),"window.__m2vToken="+generation+";",onlineResourcesAllowed);getPreferences(0).edit().putString("code",savedCode).apply();stage.loadDataWithBaseURL("https://motion.local/",prepared,"text/html","UTF-8",null);previewMonitor.removeCallbacksAndMessages(null);monitorPreview(generation);}
+ protected void preview(){
+  FontDiscovery fonts=FontDiscovery.scan(editor.getText().toString());
+  preview(AppFonts.scope(this,fonts,false));
+ }
+ protected void preview(FontCache.Scope fonts){
+  if(stageFailed){onRenderError(WebViewSecurity.RENDERER_ERROR);return;}
+  generation++;
+  savedCode=editor.getText().toString();
+  String code=savedCode.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;", "top:0;right:0;bottom:0;left:0;inset:0;");
+  contextReported=false;
+  fontNotices=0;
+  onFontNotice(0);
+  WebViewSecurity.resetDiagnostics(stage);
+  stageFonts=fonts;
+  String stylesheet=asset("fonts.css")+(fonts==null?"":fonts.css(fonts.families()));
+  String prepared=ImportedContent.prepare(code,asset("motion-clock.js"),stylesheet,"window.__m2vToken="+generation+";",onlineResourcesAllowed);
+  getPreferences(0).edit().putString("code",savedCode).apply();
+  stage.loadDataWithBaseURL("https://motion.local/",prepared,"text/html","UTF-8",null);
+  previewMonitor.removeCallbacksAndMessages(null);
+  monitorPreview(generation);
+ }
  private void monitorPreview(int token){
   if(isDestroyed()||stageFailed||token!=generation)return;
   if(working){previewMonitor.postDelayed(()->monitorPreview(token),RenderBudget.STALL_MS);return;}

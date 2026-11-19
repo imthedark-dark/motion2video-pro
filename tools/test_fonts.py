@@ -6,8 +6,8 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/motion2video/app"
 with tempfile.TemporaryDirectory() as out:
-    names = ["FontDiscovery", "FontDownload"]
-    tests = ["FontDownloadTest"]
+    names = ["FontDiscovery", "FontDownload", "FontCache"]
+    tests = ["FontDownloadTest", "FontCacheTest"]
     subprocess.run(["java", "-m", "jdk.compiler/com.sun.tools.javac.Main", "-encoding", "UTF-8", "-d", out,
                     *(str(src / (n + ".java")) for n in names),
                     *(str(root / "tests/java" / (n + ".java")) for n in tests)], check=True)

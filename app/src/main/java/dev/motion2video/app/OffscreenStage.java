@@ -17,13 +17,14 @@ import java.util.concurrent.*;
  * visible independently of the Activity. No overlay or screen-capture permission.
  */
 final class OffscreenStage implements AutoCloseable {
+ private final FontCache.Scope fonts;
  private final Context context;private final RenderRequest request;private final Handler main=new Handler(Looper.getMainLooper());
  private VirtualDisplay display;private ImageReader sink;private Presentation window;private WebView web;private WebMessagePort clock;
  private final CompletableFuture<Void> released=new CompletableFuture<>();
  private volatile IOException rendererFailure;
  private volatile boolean closed,attached;private boolean pageFinished;private volatile Capture pending;private volatile CompletableFuture<String> pendingJs;private final java.util.Set<Bitmap> copying=java.util.concurrent.ConcurrentHashMap.newKeySet();
  private static final class Capture{final int token;final Bitmap bitmap;final CompletableFuture<Void> done=new CompletableFuture<>();Capture(int t,Bitmap b){token=t;bitmap=b;}}
- OffscreenStage(Context context,RenderRequest request)throws Exception{this.context=context;this.request=request;try{onMain(()->{if(!closed)create();return null;});}catch(Exception e){closed=true;main.post(this::closeNow);throw e;}}
+ OffscreenStage(Context context,RenderRequest request)throws Exception{this.context=context;this.request=request;fonts=AppFonts.scope(context,FontDiscovery.scan(request.html),true);try{onMain(()->{if(!closed)create();return null;});}catch(Exception e){closed=true;main.post(this::closeNow);throw e;}}
  private <T>T onMain(Callable<T> action)throws Exception{if(Looper.myLooper()==Looper.getMainLooper())return action.call();FutureTask<T> task=new FutureTask<>(action);main.post(task);return task.get(45,TimeUnit.SECONDS);}
  private void create()throws Exception{
   try{
@@ -44,7 +45,7 @@ final class OffscreenStage implements AutoCloseable {
      Uri url=requestInfo.getUrl();
      WebResourceResponse response=StageAssets.response(context,url,request.onlineResources,notice->{
       if((notice&StageAssets.FONT_BLOCKED)!=0)diagnostics.blocked(url);
-     });
+     },fonts);
      if(response!=null&&response.getStatusCode()==403)diagnostics.blocked(url);
      return response;
     }
@@ -64,7 +65,7 @@ final class OffscreenStage implements AutoCloseable {
    });
    FrameLayout root=new FrameLayout(window.getContext());root.setBackgroundColor(Color.BLACK);root.addView(web,new FrameLayout.LayoutParams(-1,-1));window.setContentView(root);window.show();window.getWindow().setLayout(request.width,request.height);
    String code=request.html.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;","top:0;right:0;bottom:0;left:0;inset:0;");
-   web.loadDataWithBaseURL("https://motion.local/",ImportedContent.prepare(code,StageAssets.text(context,"motion-clock.js"),StageAssets.text(context,"fonts.css"),"",request.onlineResources),"text/html","UTF-8",null);
+   web.loadDataWithBaseURL("https://motion.local/",ImportedContent.prepare(code,StageAssets.text(context,"motion-clock.js"),StageAssets.text(context,"fonts.css")+(fonts==null?"":fonts.css(fonts.families())),"",request.onlineResources),"text/html","UTF-8",null);
   }catch(Throwable e){closeNow();throw new IOException("ساخت محیط مستقل رندر انجام نشد: "+e.getClass().getSimpleName(),e);}
  }
  private String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();pendingJs=f;main.post(()->{if(closed){f.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));return;}web.evaluateJavascript(script,f::complete);});try{return f.get(RenderBudget.STALL_MS,TimeUnit.MILLISECONDS);}catch(TimeoutException e){IOException timeout=new IOException("اجرای کد موشن در زمان مجاز پاسخ نداد.",e);abort(timeout,true);throw timeout;}finally{if(pendingJs==f)pendingJs=null;}}
@@ -114,7 +115,7 @@ final class OffscreenStage implements AutoCloseable {
   if(web!=null){WebView old=web;web=null;try{if(old.getParent() instanceof ViewGroup)((ViewGroup)old.getParent()).removeView(old);}catch(RuntimeException ignored){}try{if(rendererFailure==null)old.stopLoading();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
   if(window!=null){try{window.dismiss();}catch(RuntimeException ignored){}window=null;}
   if(display!=null){try{display.release();}catch(RuntimeException ignored){}display=null;}
-  if(sink!=null){try{sink.close();}catch(RuntimeException ignored){}sink=null;}released.complete(null);
+  if(sink!=null){try{sink.close();}catch(RuntimeException ignored){}sink=null;}if(fonts!=null)fonts.close();released.complete(null);
  }
  @Override public void close(){if(closed&&Looper.myLooper()!=Looper.getMainLooper())try{released.get(3,TimeUnit.SECONDS);}catch(Exception ignored){}try{onMain(()->{closeNow();return null;});}catch(Exception ignored){}}
 }

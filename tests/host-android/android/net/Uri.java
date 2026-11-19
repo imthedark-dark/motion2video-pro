@@ -6,6 +6,7 @@ public class Uri {
  private final URI uri;
  private Uri(String value){uri=URI.create(value);}
  public static Uri parse(String value){return new Uri(value);}
+ @Override public String toString(){return uri.toString();}
  public String getHost(){return uri.getHost();}
  public String getScheme(){return uri.getScheme();}
  public String getPath(){return uri.getPath();}

@@ -20,6 +20,7 @@ function get(ref, file) {
 function makeStage(ref, tmp) {
   const source = get(ref, javaPath + 'StageAssets.java');
   const oldResponse = source.includes('Context c,Uri uri)');
+  const fontCache = source.includes("FontCache.Scope");
   const fontNotice = source.includes('IntConsumer fontNotice');
   const previewJava = get(ref, javaPath + 'MainActivity.java');
   const prepared = previewJava.includes('ImportedContent.prepare(');
@@ -70,8 +71,10 @@ public final class HostStage {
  }
 }
 `);
+  const helpers = fontCache?['FontDiscovery.java','FontDownload.java','FontCache.java']:[];
+  for(const name of helpers)fs.writeFileSync(path.join(tmp,name),get(ref,javaPath+name));
   const files = ['content/Context.java','net/Uri.java','webkit/WebResourceResponse.java'].map(name => path.join(contextSource,name));
-  run('java',['-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8','-d',tmp,...files,'StageAssets.java','HostStage.java',...(imports?[imports]:[])],{cwd:tmp,stdio:'inherit'});
+  run('java',['-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8','-d',tmp,...files,'StageAssets.java','HostStage.java',...helpers,...(imports?[imports]:[])],{cwd:tmp,stdio:'inherit'});
   const launch=(...args)=>run('java',['-cp',tmp,'dev.motion2video.app.HostStage',assets,...args],{encoding:'utf8',maxBuffer:8*1024*1024});
   const html=launch('document',path.join(__dirname,'fixtures/motion-video.html'));
   const ready = prepared
