@@ -72,3 +72,7 @@ npm run test:clock
 ## فاز ۴: امضای اختیاری انتشار
 
 `python3 build.py --release --sign` فقط با تنظیمات خصوصی محیط یا `release-signing.properties` محلی فعال می‌شود؛ ساخت معمولی debug و `--release` بدون امضا باقی می‌مانند. نام نسخه از متادیتای Gradle خوانده می‌شود. APK را وارد Git نکن؛ انتشار تولیدی فقط پس از بررسی امضا، اسکن و آزمون واقعی از GitHub Releases انجام می‌شود. [راهنمای کامل](RELEASE.md).
+
+## آزمون حریم خصوصی فاز ۵
+
+`python3 tools/test_privacy.py` پیام‌های خطای واقعی و کنترل خروجی FFmpeg را با دادهٔ مصنوعی آزمایش می‌کند. `python3 tools/verify_privacy.py --apks` پس از ساخت debug و release، فرادادهٔ واقعی مانیفست‌ها و مرزهای سورس را بررسی می‌کند. `desktop/master_export.py --debug` برای بررسی محلی، خروجی تشخیصی FFmpeg را نمایش می‌دهد و ممکن است مسیر فایل‌ها را آشکار کند؛ حالت عادی آن را نمایش نمی‌دهد. [روش آزمون و محدودیت](PHASE5_PRIVACY.md).

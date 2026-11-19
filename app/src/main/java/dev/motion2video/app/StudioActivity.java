@@ -70,7 +70,6 @@ public final class StudioActivity extends MainActivity {
     view.postWebMessage(new WebMessage("motion-native-port-v1",new WebMessagePort[]{pair[1]}),Uri.parse(ORIGIN));
    }
   });
-  studio.setWebChromeClient(new WebChromeClient());
   studioRoot.addView(studio,new FrameLayout.LayoutParams(-1,-1));
   stage.setVisibility(View.INVISIBLE);studioRoot.addView(stage,new FrameLayout.LayoutParams(1,1));
   setContentView(studioRoot);
@@ -115,7 +114,7 @@ public final class StudioActivity extends MainActivity {
    if(type.equals("capabilities")){stage.setVisibility(View.INVISIBLE);emit("capabilities","text",CodecSupport.report());return;}
    if(type.equals("openDownloads")||type.equals("openDownload")||type.equals("save")){
     if(working||saving){emit("downloadError","message","رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");return;}
-    try{if(type.equals("openDownloads"))openDownloads();else if(type.equals("openDownload"))openDownload(m.getString("uri"));else saveCurrent();}catch(Exception e){emit("downloadError","message",e.getMessage()==null?"بازکردن دانلود انجام نشد.":e.getMessage());}return;
+    try{if(type.equals("openDownloads"))openDownloads();else if(type.equals("openDownload"))openDownload(m.getString("uri"));else saveCurrent();}catch(Exception e){emit("downloadError","message",PublicErrors.message(e));}return;
    }
    if(working||saving)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");
    if(type.equals("preview")||type.equals("render")){
@@ -174,7 +173,7 @@ public final class StudioActivity extends MainActivity {
   new Thread(()->{try{
    JSONObject item=downloads.save(source,mime,ext);
    runOnUiThread(()->{saving=false;savedSource=source.getAbsolutePath();savedDownload=item;RenderService.recordDownload(this,source.getAbsolutePath(),item);emit("saved","item",item);emitDownloads();});
-  }catch(Exception e){runOnUiThread(()->{saving=false;emit("downloadError","message","ذخیره در دانلودها انجام نشد؛ فضای خالی و دسترسی حافظه را بررسی کن. "+(e.getMessage()==null?"":e.getMessage()));});}},"save-download").start();
+  }catch(Exception e){runOnUiThread(()->{saving=false;emit("downloadError","message","ذخیره در دانلودها انجام نشد؛ فضای خالی و دسترسی حافظه را بررسی کن. "+(PublicErrors.message(e)));});}},"save-download").start();
  }
  @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){
   super.onRequestPermissionsResult(request,permissions,grants);
@@ -196,12 +195,12 @@ public final class StudioActivity extends MainActivity {
    if(PermissionPolicy.notifications(android.os.Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
    if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
    if(!permissions.isEmpty()){pendingRender.write(this);working=true;requestPermissions(permissions.toArray(new String[0]),RENDER_PERMISSIONS);}else beginRender();
-  }catch(Exception e){working=false;pendingRender=null;emit("error","message",e.getMessage()==null?"شروع رندر انجام نشد.":e.getMessage());}
+  }catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}
  }
  private void beginRender(){
   RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}
   try{RenderService.start(this,request);working=true;stage.onPause();emit("renderState","state",new JSONObject().put("phase","preparing").put("id",request.id).put("done",0).put("total",request.frames).put("options",request.options()).put("message","آماده‌سازی رندر مستقل…"));}
-  catch(Exception e){working=false;emit("error","message","شروع سرویس رندر انجام نشد: "+e.getMessage());}
+  catch(Exception e){working=false;emit("error","message","شروع سرویس رندر انجام نشد: "+PublicErrors.message(e));}
  }
  private void renderState(JSONObject s){
   if(closed||!bridgeReady||s.optString("phase").isEmpty())return;
@@ -231,7 +230,7 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onRenderError(String error){emit(cancelled?"cancelled":"error","message",error==null?"رندر انجام نشد.":error);}
  @Override protected void onVideoSaved(){emit("saved");}
  @Override protected void onActivityResult(int r,int code,Intent data){
-  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("file","code",html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",e.getMessage()==null?"فایل HTML خوانده نشد.":e.getMessage()));}finally{importing=false;}},"html-import").start();}return;}
+  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("file","code",html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
   super.onActivityResult(r,code,data);
  }
  @Override protected void onDestroy(){closed=true;readyPoll++;if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}

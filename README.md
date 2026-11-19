@@ -185,3 +185,9 @@ Phase 3 builds and host checks pass. Native acceptance is pending: the test emul
 Release signing is explicit (`python3 build.py --release --sign`) and reads environment settings or ignored local properties; debug and unsigned contributor builds remain available. APK versioned filenames come from Gradle output metadata. APK binaries are removed from this branch; existing tags/Release assets stay unchanged. Actions are pinned to full SHAs with read-only permissions by default (only an explicit guarded publication job can write Releases), Dependabot covers npm/Gradle/Actions, CI audits npm and runs isolated OWASP Dependency-Check, and schema-2 bundled version/hash/license checks reject drift. See [release process](docs/RELEASE.md), [security reporting status](SECURITY.md) and [license concerns](docs/LICENSING.md). No production release or completed native acceptance is implied.
 
 Remaining setup: private vulnerability reporting is still disabled after GitHub403; an owner must enable it. The full OWASP scan is blocked by NVD/CISA feed access, so no clean dependency-scan result is claimed.
+
+### Phase 5 privacy review
+
+Native rendering has no project-owned upload service, analytics or crash-reporting SDK. WebView console forwarding is suppressed, public errors use reviewed fixed messages, and the manifest requests WebView metrics opt-out while keeping Safe Browsing enabled. Desktop FFmpeg diagnostics are off unless `--debug` is chosen. Drafts/cache/history remain local; Downloads remain outside private app storage.
+
+Explicit online resources can send content, standalone HTML loads CDNs, and OS/provider behavior is separate. Read the [Persian/English privacy policy](PRIVACY.md) and [evidence/limits](docs/PHASE5_PRIVACY.md). These source/host checks do not establish zero device traffic; native logging/network acceptance is still pending. No new public APK was published.

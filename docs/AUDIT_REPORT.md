@@ -155,3 +155,32 @@ Verified at `eb534c0`: three signed APK binaries and SHA256SUMS are tracked in d
 | Native/physical acceptance | NOT RUN in Phase4; Phase3 runtime gaps remain. Signing/static checks do not establish device behavior |
 
 No production key, password, token or new public APK was committed/published. Render/converter/clock/UI asset bytes are unchanged. Phase5 was not started. Feed access/NVD setup, private reporting activation and native acceptance remain gates before a hardened production release.
+
+## Phase 5 baseline (before implementation)
+
+Verified at `9bc7677`: first-party Android Java has no Log calls, printStackTrace, System.out/err or analytics/crash-reporting SDK. Production Gradle declares AndroidX Core only; the resolved runtime graph from Phase4 contains AndroidX/Kotlin/Guava/annotation artifacts, not an app telemetry client. Network access is through WebView: trusted UI requests are intercepted locally and imported resources are blocked by default, but explicit online consent allows HTTPS resources/connections. Safe Browsing stays enabled and belongs to platform behavior. The standalone HTML requests Tailwind/GSAP/Google Fonts and includes two preconnect hints. No metrics opt-out is declared in the manifest. WebViews have no console-suppression handler; StudioActivity explicitly installs a default WebChromeClient. Raw exception getMessage values reach native UI/notifications and persisted render errors/warnings, potentially including provider paths or text. Private preferences retain editor HTML, render status and download metadata; job JSON/output copies use private cache, and exports remain in public Downloads. The optional desktop FFmpeg tool forwards default FFmpeg diagnostics and raises CalledProcessError with full arguments on failure. A blanket claim of zero off-device traffic in every mode would be false; privacy documentation must distinguish local rendering, opt-in remote content, standalone CDNs and platform/provider behavior.
+
+### Phase 5 implementation and verification
+
+- Centralized a console-consuming WebChromeClient for all three native WebViews; removed Studio's default-client override. No runtime logger, analytics or crash reporter was added. Release remote debugging remains disabled; debug builds retain explicit developer inspection.
+- Added a reviewed exact public-error catalogue and fixed permission/file/memory/timeout fallbacks. Unknown provider/codec text, paths, HTML and credential-shaped URLs are not forwarded into new errors/notifications. Cause traversal is bounded/cycle-safe. Legacy error/warning display is filtered without a destructive/racing storage migration; intentional file metadata is retained.
+- Requested WebView metrics opt-out through application metadata, verified against official Android documentation and actual compiled APKs. Safe Browsing stays enabled. Removed only the two speculative studio font-preconnect hints; CDN resources required by standalone HTML stay. Only studio.html's approved hash/size changed; other35 bundled files are unchanged.
+- Optional desktop FFmpeg encoding arguments are unchanged. Default diagnostic streams are suppressed and failure output is fixed; --debug explicitly enables local diagnostics. A real export/decode regression was checked as well as fake-process diagnostic tests.
+- Added bilingual PRIVACY.md covering default local rendering, retained private/cache/Downloads data, deletion, opt-in network content, standalone CDN and platform/provider boundaries. A blanket all-device/all-mode no-traffic claim is explicitly not made.
+
+| Verification | Actual result |
+| --- | --- |
+| Debug / minified unsigned release | PASS: both builds; non-debuggable/R8/resource/merged-component regressions pass |
+| Compiled privacy metadata | PASS: both APKs contain WebView.MetricsOptOut=true; R8 retains both console callback overrides |
+| Privacy error tests | PASS: 22 actual production filtering cases, including paths/HTML/URL credentials, oversized text, cyclic/throwing causes and useful fixed messages |
+| Desktop diagnostic contract | PASS: default success/failure suppress fixture output; explicit --debug shows it; full encoding/audio argument vector unchanged |
+| Real desktop H.264 export | PASS: 640×360, 30 frames at30fps, YUV420P/BT.709 limited; full FFmpeg decode succeeds |
+| Required UI/security suite | PASS: layouts/motion/download flows; actual Java CSP blocks all default TLS probes and permits a synthetic POST body only after online opt-in |
+| Clock / YUV | PASS: modern/legacy clock and all72 byte-identical converter cases |
+| Platform / input / schema | PASS: permission/copy regressions,23 input/budget cases and159 production bridge/request host cases |
+| Asset / supply-chain regressions | PASS: all36 assets/13 component records and17 negative supply-chain guards; no silent dependency update |
+| Source privacy / credential audit | PASS: no first-party diagnostic sink/raw exception bypass/known telemetry client; source scan has zero findings |
+| Workflow validation | PASS: actionlint; new privacy checks added with existing pinned actions/least privileges unchanged |
+| Native privacy fixture | Compiled/packaged only. Not executed; no native logcat/packet-capture/provider-behavior PASS is claimed |
+
+Native/physical acceptance and the previously recorded Phase4 advisory-feed/private-reporting gates are not resolved by these changes. Android/Chromium/vendor diagnostics, Safe Browsing, selected providers and explicitly allowed imported/standalone/external-tool traffic remain separate boundaries. No production key or new Release APK was published. Phase6 was not started.

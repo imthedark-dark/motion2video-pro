@@ -97,3 +97,9 @@ UI/clock/security probes, all72 YUV byte-identical cases, platform, 23 input/bud
 OWASP's full analysis remains blocked by NVD missing/anonymous-key access and CISA403 feed responses; this is not a clean vulnerability result. Private vulnerability reporting remains disabled after integration403. No new native/physical test PASS is claimed; Phase3 gaps carry forward. See [release process and gates](RELEASE.md).
 
 Publication guard verification passed with a throwaway QA candidate; wrong signer/tag, debuggable and unsigned APK cases were rejected. This only tests the local verifier. Guarded GitHub draft publishing was not invoked and remains gated on a green tagged-source audit and real native acceptance; it does not itself provide reproducible-build provenance.
+
+## Phase 5 (2026-11-19)
+
+Debug and minified unsigned builds pass; actual APK metadata requests WebView metrics opt-out and R8 retains console callback overrides. Host tests pass: UI/security (zero default TLS hits and positive consented synthetic POST), clock, all72 byte-identical YUV cases, platform,23 input/budget,159 request schema,22 public-error privacy cases and17 supply-chain guards. Desktop diagnostic success/failure/default/debug cases pass with identical encoding/audio arguments. A real desktop H.264640×36030fps export has30 frames, YUV420P/BT.709 limited and decodes fully. The studio preconnect removal is the only bundled byte change; its reviewed hash/size is updated.
+
+Native PrivacyTest compiled and packaged but was not executed. Full native logcat/network/provider/Safe Browsing behavior and physical-phone acceptance remain unverified; source/host TLS probes are not a device-wide packet capture. Existing Phase3/4 release gates remain separate. See [privacy evidence and manual checks](PHASE5_PRIVACY.md) and [bilingual policy](../PRIVACY.md).

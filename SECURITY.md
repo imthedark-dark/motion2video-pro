@@ -4,11 +4,11 @@
 
 | Version | Status |
 | --- | --- |
-| Latest security-review source (`security/phase-4`, incorporating Phases 1–3) | Reports accepted; host/build checks recorded, native acceptance pending |
+| Latest security-review source (`security/phase-5`, incorporating Phases 1–4) | Reports accepted; host/build checks recorded, native acceptance pending |
 | Published v1.4.1 | Legacy development-signed release; investigate reports, but security fixes currently exist only in review source |
 | v1.4.0 and older | Unsupported; do not assume they contain the hardening in current source |
 
-No hardened production APK has been published. Published v1.4.1 does **not** contain Phases 1–4. Native Phase 3 acceptance and physical-device checks remain outstanding. Update this table when a tested release ships.
+No hardened production APK has been published. Published v1.4.1 does **not** contain Phases 1–5. Native Phase 3 acceptance and physical-device checks remain outstanding. Update this table when a tested release ships.
 
 ## Report a vulnerability privately
 
@@ -30,7 +30,7 @@ Imports have type/size/UTF-8 limits; render requests restrict dimensions, durati
 
 - Arbitrary JavaScript can consume CPU/memory. Java heap checks are not a renderer/GPU/OS memory quota; process death and blocked platform APIs can defeat timely cleanup. API26–28 cannot use the newer renderer-termination API.
 - Native infinite-script/cancel/preview, memory-pressure and final minified-release runtime acceptance remain unverified in Phase 3 because the emulator's system services failed. No physical-phone acceptance is claimed.
-- Enabling online resources lets imported code contact external servers and potentially disclose content. Safe Browsing and OS services may have their own network behavior. A complete privacy/logging audit is Phase 5 work.
+- Enabling online resources lets imported code contact external servers and potentially disclose content. Safe Browsing and OS services may have their own network behavior. Phase5 privacy controls and scoped evidence are documented in PRIVACY.md; device-wide network/logging acceptance is still pending.
 - MediaCodec/WebView/OS vulnerabilities and codec availability depend on the device and vendor updates. Codec support is not universal.
 - Hashes prove byte consistency against a reviewed manifest, not author identity or absence of bugs. Validate the APK signer separately through a trusted fingerprint. Dependency scanners can miss vulnerabilities or report false positives; unavailable advisory feeds must not be reported as clean scans.
 - Original code is MIT; GSAP is custom-licensed. The whole bundled stack is not wholly OSI-licensed. See [license review](docs/LICENSING.md).
@@ -38,3 +38,9 @@ Imports have type/size/UTF-8 limits; render requests restrict dimensions, durati
 ## Sensitive material
 
 Never commit signing keys, passwords, tokens, private URLs, local signing properties, logs or user runtime data. `build/debug.jks`, release keys and `release-signing.properties` are ignored. The standard debug password is a public development default, not a production credential. Run `python3 tools/audit_source.py` before committing; its checks do not replace human review. Build/verification CI has read-only permissions and pinned actions; only the explicit draft-publication job has contents:write/actions:read. No CI job has a production signing key. Do not publish contributor/throwaway QA APKs as production releases.
+
+## Phase 5 privacy and logging controls
+
+All native WebViews consume console messages without forwarding message/source text. Unknown exception strings are not copied into new public errors or notifications; exact reviewed messages and fixed type fallbacks are used, with bounded/cycle-safe cause traversal. Legacy stored error/warning display is filtered. Intentional output metadata remains available to the trusted UI. No native verbose logger, analytics or crash-reporting SDK was added. WebView metrics opt-out is declared; Safe Browsing remains enabled. Optional desktop diagnostics require `--debug`.
+
+See [PRIVACY.md](PRIVACY.md) for Persian/English storage, network and deletion details. Tests distinguish default blocking from explicitly allowed remote content. Native packet/logcat capture and OS/provider telemetry behavior remain unverified; this is not an air-gap guarantee. A future crash-reporting integration must be explicitly opt-in and OFF by default, with a new privacy review. Current private-reporting setup and Phase4 feed blockers are unchanged.

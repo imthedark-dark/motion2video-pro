@@ -38,9 +38,12 @@ jobs:
       - run: python3 tools/test_yuv.py
       - run: python3 tools/test_platform.py
       - run: python3 tools/test_input.py
+      - run: python3 tools/test_privacy.py
+      - run: python3 tools/verify_privacy.py
       - run: python3 build.py
       - run: python3 build.py --release
       - run: python3 tools/verify_phase2.py
+      - run: python3 tools/verify_privacy.py --apks
       - run: python3 tools/verify_release.py --directory dist
       - name: Resolve actual native dependencies for OWASP scan
         run: ./gradlew --no-daemon :app:copySecurityDependencies

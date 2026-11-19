@@ -10,6 +10,7 @@ final class WebViewSecurity {
  static final String RENDERER_ERROR="پردازشگر نمایش موشن متوقف شد؛ رندر لغو شد. برنامه را دوباره باز کن.";
  @SuppressWarnings("deprecation")
  static void configure(WebView view,Context context,boolean trusted){
+  view.setWebChromeClient(new PrivateWebChromeClient());
   WebSettings s=view.getSettings();
   s.setAllowFileAccess(false);s.setAllowContentAccess(false);
   s.setAllowFileAccessFromFileURLs(false);s.setAllowUniversalAccessFromFileURLs(false);
