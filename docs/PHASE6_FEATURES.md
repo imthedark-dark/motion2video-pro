@@ -27,3 +27,8 @@ Validation: debug and unsigned/R8 release builds; UI/security, clock, 72 YUV, pl
 Added a closed shareDownload command, generated-name/canonical-parent validation, read-only FileProvider URI/ClipData, and a system chooser from each history row. No provider roots expanded. The history URI is only an identity lookup; callers cannot supply a file path. Deleted/moved files fail safely; scoped-storage/OEM direct-path failures require re-export or the system Downloads manager. Host schema rejects non-content URIs; browser transport verifies the selected registered URI and safe text rendering. Actual receiving-app grants need device acceptance.
 
 6f validation: debug and unsigned/R8 release builds and full feature-check suite PASS (UI sharing transport, 165 request-schema cases, clock, 72 YUV, platform, input, privacy, feature ranking, supply-chain, asset/manifest checks). No production signing or publication.
+
+## 6g — size presets and project settings
+Appended Square 1080×1080 to all native/schema/UI size sets without shifting default indices. Explicit Story/Reels/YouTube/Square presets affect size only. Named settings use a bounded local array (20 entries, 64-character names, 64KB read ceiling), safe option text, strict revalidation on load and rollback on invalid data. No HTML, audio reference or online consent persists in project settings; existing draft autosave is unchanged.
+
+6g validation: full debug/release and feature-check suite PASS; 195 request/bridge cases include all five sizes. UI tests apply Square, preserve fps/bitrate, safely display a markup-like project name, save/load/delete settings and check excluded sensitive fields. No physical-device claim.

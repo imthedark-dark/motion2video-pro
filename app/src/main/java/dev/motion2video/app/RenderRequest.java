@@ -15,7 +15,7 @@ public final class RenderRequest {
   if(!(o.get("mime") instanceof String)||(o.has("gpu")&&!(o.get("gpu") instanceof Boolean))||(o.has("onlineResources")&&!(o.get("onlineResources") instanceof Boolean)))throw new IOException("نوع تنظیمات معتبر نیست.");
   this.id=id;this.html=html;duration=o.getDouble("duration");fps=o.getInt("fps");width=o.getInt("width");height=o.getInt("height");bitrate=o.getInt("bitrate");mime=o.getString("mime");gpu=o.optBoolean("gpu",false);onlineResources=o.optBoolean("onlineResources",false);
   if(html.trim().isEmpty()||html.getBytes(StandardCharsets.UTF_8).length>ImportPolicy.MAX_BYTES||!Double.isFinite(duration)||duration<1||duration>300||(fps!=30&&fps!=60)||!Arrays.asList(CodecSupport.MIME).contains(mime)||(bitrate!=12000000&&bitrate!=16000000&&bitrate!=20000000))throw new IOException("کد یا تنظیمات رندر معتبر نیست.");
-  if(!((width==640&&height==360)||(width==1280&&height==720)||(width==1920&&height==1080)||(width==1080&&height==1920)))throw new IOException("اندازهٔ خروجی معتبر نیست.");
+  if(!((width==640&&height==360)||(width==1280&&height==720)||(width==1920&&height==1080)||(width==1080&&height==1920)||(width==1080&&height==1080)))throw new IOException("اندازهٔ خروجی معتبر نیست.");
   frames=(int)Math.round(duration*fps);ext=CodecSupport.webm(mime)?"webm":"mp4";
  }
  public static RenderRequest create(String html,JSONObject o)throws Exception{return new RenderRequest(UUID.randomUUID().toString(),html,o);}

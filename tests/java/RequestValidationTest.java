@@ -8,7 +8,7 @@ public final class RequestValidationTest {
   try{if(bridge)BridgeValidation.command(new JSONObject().put("type","render").put("html","<html>سلام</html>").put("options",bad));else RenderRequest.create("<html>سلام</html>",bad);throw new AssertionError("Invalid settings accepted");}catch(java.io.IOException|JSONException expected){checks++;}
  }
  public static void main(String[] args)throws Exception{
-  for(int[] size:new int[][]{{640,360},{1280,720},{1920,1080},{1080,1920}})for(int fps:new int[]{30,60})for(int bitrate:new int[]{12000000,16000000,20000000})for(String mime:CodecSupport.MIME){
+  for(int[] size:new int[][]{{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}})for(int fps:new int[]{30,60})for(int bitrate:new int[]{12000000,16000000,20000000})for(String mime:CodecSupport.MIME){
    JSONObject o=options().put("width",size[0]).put("height",size[1]).put("fps",fps).put("bitrate",bitrate).put("mime",mime);
    RenderRequest r=RenderRequest.create("<html>سلام</html>",o);if(r.width!=size[0]||r.height!=size[1]||r.fps!=fps||r.bitrate!=bitrate||r.frames!=14*fps||!BridgeValidation.command(new JSONObject().put("type","render").put("html",r.html).put("options",o)).equals("render"))throw new AssertionError("Valid output changed");checks++;
   }

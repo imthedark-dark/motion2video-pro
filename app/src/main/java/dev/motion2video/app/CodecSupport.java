@@ -17,7 +17,7 @@ public final class CodecSupport {
  }
  public static org.json.JSONObject suggestion(RenderRequest r)throws Exception {
   org.json.JSONObject best=null;double score=Double.POSITIVE_INFINITY;
-  for(String mime:MIME)for(int[] size:new int[][]{{640,360},{1280,720},{1920,1080},{1080,1920}})for(int fps:new int[]{30,60})for(int bits:new int[]{12000000,16000000,20000000}){
+  for(String mime:MIME)for(int[] size:new int[][]{{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}})for(int fps:new int[]{30,60})for(int bits:new int[]{12000000,16000000,20000000}){
    double rank=CapabilityPolicy.score(r.mime,mime,r.width,r.height,r.fps,r.bitrate,size[0],size[1],fps,bits);if(rank>=score)continue;
    try{encoder(mime,size[0],size[1],fps,bits);best=r.options().put("mime",mime).put("width",size[0]).put("height",size[1]).put("fps",fps).put("bitrate",bits);score=rank;}catch(Exception ignored){}
   }return best;

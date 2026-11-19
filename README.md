@@ -195,3 +195,5 @@ Explicit online resources can send content, standalone HTML loads CDNs, and OS/p
 Phase6 feature work is isolated on feature/phase-6; capability proposals are shown before rendering and applied only by the user. Accepted phases remain frozen on security/phase-5. See [feature audit](docs/PHASE6_FEATURES.md).
 
 Registered exports now have a Share action using the narrow read-only FileProvider and Android chooser. If a file was moved/deleted or direct access is unavailable, re-export or use the Downloads manager.
+
+Explicit Story/Reels, YouTube and Square size presets are available. Up to 20 named project settings are stored on this device; animation HTML, audio files and online permission are excluded. Defaults remain 1280×720, 60 FPS, 16 Mbps, H.264.
