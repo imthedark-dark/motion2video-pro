@@ -105,3 +105,7 @@ Dependabot covers npm, Gradle (app and isolated scanner) and GitHub Actions week
 ## Phase 6 release gate
 
 Feature builds remain unreleased debug/unsigned artifacts. Before owner-controlled signing/publication, complete the physical-device capability, audio A/V/priming, queue lifecycle/quota and FileProvider share checks in VALIDATION.md, including a minified release UI pass. Host DSP/FIFO and compile-only instrumentation are not substitutes. Preserve the existing signer and user-owned production keystore; this work neither creates production keys nor changes published Release assets.
+
+### Fresh-checkout contributor builds
+
+An explicit `M2V_DEBUG_KEYSTORE` must name an existing development keystore. Otherwise an existing ignored `build/debug.jks` is reused. On a fresh checkout, Android Gradle Plugin uses its standard automatically generated debug keystore. Contributor debug builds require no production secrets. Production signing remains an explicit, separate configuration.

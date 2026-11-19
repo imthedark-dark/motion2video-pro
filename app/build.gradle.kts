@@ -14,8 +14,15 @@ android {
     }
     signingConfigs.getByName("debug") {
         val override = providers.environmentVariable("M2V_DEBUG_KEYSTORE").orNull
-        storeFile = if (override == null) rootProject.file("build/debug.jks") else rootProject.file(override).also {
-            require(it.isFile) { "M2V_DEBUG_KEYSTORE must point to an existing development keystore" }
+        if (override != null) {
+            storeFile = rootProject.file(override).also {
+                require(it.isFile) { "M2V_DEBUG_KEYSTORE must point to an existing development keystore" }
+            }
+        } else {
+            // Existing contributors retain their development identity. Fresh checkouts
+            // use AGP's standard, automatically generated debug keystore.
+            val localDebugKey = rootProject.file("build/debug.jks")
+            if (localDebugKey.isFile) storeFile = localDebugKey
         }
     }
     val signedRelease = providers.gradleProperty("m2vReleaseSigning").orNull == "true"
