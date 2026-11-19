@@ -89,6 +89,8 @@ final class FontDownload {
    ":ital,wght@0,100..900;1,100..900&display=swap",true);
   Reply css=fetch(request,CSS_LIMIT,control);
   // Static families often reject the full variable/italic request. Retry the same approved family at its default face.
+  if(css.status==400) css=fetch(allowed("https://fonts.googleapis.com/css2?family="+family.replace(" ","+")+
+   ":wght@400;500;700;900&display=swap",true),CSS_LIMIT,control);
   if(css.status==400) css=fetch(allowed("https://fonts.googleapis.com/css2?family="+family.replace(" ","+")+"&display=swap",true),CSS_LIMIT,control);
   if(css.status!=200 || !type(css.mime).equals("text/css")) throw failure();
   String source=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(css.bytes)).toString();
@@ -172,7 +174,9 @@ final class FontDownload {
   boolean woff2=mime.equals("font/woff2");
   if(!woff2&&!mime.equals("font/woff"))return false;
   return bytes.length>=(woff2?48:44) && magic==(woff2?0x774f4632:0x774f4646) &&
-    data.getInt(8)==bytes.length && data.getShort(12)>0 && data.getInt(16)>0 && data.getInt(16)<=FAMILY_LIMIT;
+    data.getInt(8)==bytes.length && data.getShort(12)>0 && data.getShort(12)<=128 &&
+    data.getInt(16)>0 && data.getInt(16)<=FAMILY_LIMIT &&
+    (!woff2||(data.getInt(20)>0&&data.getInt(20)<=bytes.length-48));
  }
 
  static IOException failure(){return new IOException("Font download rejected");}
@@ -191,7 +195,7 @@ final class FontDownload {
    connection.setRequestProperty("User-Agent",UA);
    int status=connection.getResponseCode();
    if(status!=200) return new Reply(status,"",new byte[0]);
-   if(connection.getContentLength()>limit) throw failure();
+   if(connection.getContentLengthLong()>limit) throw failure();
    try(InputStream in=connection.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
     byte[] buffer=new byte[8192];
     for(int read;(read=in.read(buffer))!=-1;){

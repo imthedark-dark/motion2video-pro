@@ -23,6 +23,9 @@ public final class StudioActivity extends MainActivity {
  private String exportPath="";
  private boolean closed;
  private int readyPoll;
+ private FontWorkflow fontWorkflow;
+ private String nextPickedFontHtml;
+ private boolean fontRenderPreparing;
  private DownloadRepository downloads;
  private volatile boolean saving;
  private String savedSource="";
@@ -37,6 +40,7 @@ public final class StudioActivity extends MainActivity {
 
  @Override public void onCreate(Bundle state){
   super.onCreate(state);
+  fontWorkflow=new FontWorkflow(this,()->working||RenderService.busy(RenderService.latest(this)));
   downloads=new DownloadRepository(this);
   if(state!=null&&state.getString("pendingRender")!=null)try{pendingRender=RenderRequest.read(this,state.getString("pendingRender"));}catch(Exception ignored){}
   ((ViewGroup)stage.getParent()).removeView(stage);
@@ -108,6 +112,7 @@ public final class StudioActivity extends MainActivity {
   try{
    JSONObject m=new JSONObject(raw);String type=BridgeValidation.command(m);
    if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed,"software",softwarePreview());emitDownloads();renderState(state);return;}
+   if(type.equals("fontSettings")){fontWorkflow.openSettings();return;}
    if(type.equals("about")){showAbout();return;}
    if(type.equals("troubleshooting")){showTroubleshooting();return;}
    if(type.equals("compatibility")){
@@ -130,7 +135,7 @@ public final class StudioActivity extends MainActivity {
    if(type.equals("renderState")){renderState(RenderService.latest(this));return;}
    if(type.equals("downloads")){emitDownloads();return;}
    if(type.equals("layout")){layout(m);return;}
-   if(type.equals("cancel")){if(pendingRender!=null){try{RenderRequest.file(this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;working=false;emit("cancelled");}else RenderService.cancel(this);return;}
+   if(type.equals("cancel")){if(fontRenderPreparing){fontWorkflow.cancelPending();return;}if(pendingRender!=null){try{RenderRequest.file(this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;working=false;emit("cancelled");}else RenderService.cancel(this);return;}
    if(type.equals("capabilities")){stage.setVisibility(View.INVISIBLE);emit("capabilities","text",CodecSupport.report());return;}
    if(type.equals("openDownloads")||type.equals("openDownload")||type.equals("shareDownload")||type.equals("save")){
     if(working||saving){emit("downloadError","message","رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");return;}
@@ -139,8 +144,30 @@ public final class StudioActivity extends MainActivity {
    if(working||saving)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");
    if(type.equals("preview")||type.equals("render")){
     String html=m.getString("html");ImportPolicy.validate(html);
-    configure(m.getJSONObject("options"));editor.setText(html);
-    if(type.equals("render"))export();else preview();return;
+    boolean exportRequested=type.equals("render");
+    if(fontWorkflow.busy()){
+     if(exportRequested&&!fontRenderPreparing)emit("error","message","ابتدا بررسی فونت یا تنظیمات را تمام کن.");
+     return;
+    }
+    boolean explicit=exportRequested||html.equals(nextPickedFontHtml);
+    nextPickedFontHtml=null;
+    configure(m.getJSONObject("options"));
+    editor.setText(html);
+    fontRenderPreparing=exportRequested;
+    if(exportRequested){
+     working=true;
+     emit("renderState","state",new JSONObject().put("phase","preparing").put("message","در حال بررسی فونت‌ها…"));
+    }
+    fontWorkflow.resolve(()->FontDiscovery.scan(html),explicit,this::fontSummary,scope->{
+     fontRenderPreparing=false;
+     if(exportRequested){working=false;export();}
+     else if(!working&&!stageFailed)preview(scope);
+    },()->{
+     fontRenderPreparing=false;
+     if(exportRequested){working=false;emit("cancelled");}
+     else emit("commandError","message","پیش‌نمایش لغو شد.");
+    });
+    return;
    }
    if(type.equals("clearAudioAssets")){if(RenderQueue.pending(this))throw new IOException("ابتدا کارهای صف را تمام یا لغو کن.");if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");AudioAssets.clear(this);emit("audioCleared");return;}
    if(type.equals("chooseAudio")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("audio/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,3);return;}
@@ -186,6 +213,7 @@ public final class StudioActivity extends MainActivity {
   cancelRenderAfterRendererExit();
   showRendererRecovery(WebViewSecurity.RECOVERY_HINT);
  }
+ private void fontSummary(String text){emit("fontSummary","text",text);}
  @Override protected void onFontNotice(int flags){emit("fontNotice","replaced",(flags&StageAssets.FONT_REPLACED)!=0,"blocked",(flags&StageAssets.FONT_BLOCKED)!=0);}
  @Override protected void onStageContextLost(){emit("commandError","message",ImportedContent.CONTEXT_ERROR);}
  @Override protected void onRenderProgress(int done,int total){emit("progress","done",done,"total",total);}
@@ -245,14 +273,36 @@ public final class StudioActivity extends MainActivity {
   JSONObject item=RenderQueue.item(this,id);if(!item.getString("phase").equals("complete"))throw new IOException(QueueLedger.ERROR);JSONObject o=item.getJSONObject("options");String mime=o.getString("mime"),ext=CodecSupport.webm(mime)?"webm":"mp4";File f=new File(getCacheDir(),"render-"+id+"."+ext);if(!f.isFile())throw new FileNotFoundException();result=f;resultMime="video/"+ext;resultExt=ext;exportPath="/exports/"+id+"."+ext;savedSource="";savedDownload=null;emit("result","url",ORIGIN+exportPath,"ext",ext,"size",f.length(),"options",o);
  }
  private void importQueue(Intent data,JSONObject options){
-  if(importing)return;importing=true;emit("queueImporting");new Thread(()->{JSONArray prepared=new JSONArray();boolean committed=false;try{
+  if(importing)return;importing=true;emit("queueImporting");new Thread(()->{JSONArray prepared=new JSONArray();boolean handedOff=false;FontDiscovery fonts=new FontDiscovery();try{
    ArrayList<Uri> uris=new ArrayList<>();ClipData clip=data.getClipData();if(clip!=null){if(clip.getItemCount()>8)throw new IOException(QueueLedger.ERROR);for(int i=0;i<clip.getItemCount();i++)uris.add(clip.getItemAt(i).getUri());}else if(data.getData()!=null)uris.add(data.getData());if(uris.isEmpty())throw new IOException(QueueLedger.ERROR);
    long staged=0;File[] existing=new File(getCacheDir(),"render-jobs").listFiles();if(existing!=null)for(File f:existing)staged+=f.length();if(staged>256L*1024*1024)throw new IOException(QueueLedger.ERROR);
-   long bytes=0;for(Uri uri:uris){String html=HtmlImport.read(getContentResolver(),uri);long count=html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;bytes+=count;if(bytes>60L*1024*1024)throw new IOException(QueueLedger.ERROR);if(new android.os.StatFs(getCacheDir().getAbsolutePath()).getAvailableBytes()<count*2+32L*1024*1024)throw new IOException("فضای خالی برای فایل‌های صف کافی نیست.");RenderRequest job=RenderRequest.create(html,options);if(prepared.length()==0){try{CodecSupport.encoder(job.mime,job.width,job.height,job.fps,job.bitrate);}catch(Exception unsupported){JSONObject proposed=CodecSupport.suggestion(job);runOnUiThread(()->offerSuggestion(proposed));throw unsupported;}if(job.audio!=null)AudioComposer.validate(this,job);}String name="موشن "+(prepared.length()+1);try(android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst()){String n=c.getString(0);if(n!=null&&n.length()<=240)name=n;}}
+   long bytes=0;for(Uri uri:uris){String html=HtmlImport.read(getContentResolver(),uri);fonts.merge(FontDiscovery.scan(html));long count=html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;bytes+=count;if(bytes>60L*1024*1024)throw new IOException(QueueLedger.ERROR);if(new android.os.StatFs(getCacheDir().getAbsolutePath()).getAvailableBytes()<count*2+32L*1024*1024)throw new IOException("فضای خالی برای فایل‌های صف کافی نیست.");RenderRequest job=RenderRequest.create(html,options);if(prepared.length()==0){try{CodecSupport.encoder(job.mime,job.width,job.height,job.fps,job.bitrate);}catch(Exception unsupported){JSONObject proposed=CodecSupport.suggestion(job);runOnUiThread(()->offerSuggestion(proposed));throw unsupported;}if(job.audio!=null)AudioComposer.validate(this,job);}String name="موشن "+(prepared.length()+1);try(android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst()){String n=c.getString(0);if(n!=null&&n.length()<=240)name=n;}}
     JSONObject entry=new JSONObject().put("id",job.id).put("name",name).put("bytes",count).put("total",job.frames).put("options",job.options());prepared.put(entry);job.write(this);
    }
-   RenderQueue.enqueue(this,prepared);committed=true;runOnUiThread(()->{emit("queueState","items",RenderQueue.snapshot(this));startQueueWithPermissions();});
-  }catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{if(!committed)for(int i=0;i<prepared.length();i++)RenderQueue.cleanup(this,prepared.optJSONObject(i).optString("id"));importing=false;runOnUiThread(()->emit("queueIdle"));}},"queue-import").start();
+   runOnUiThread(()->{
+    if(closed){endQueueImport(prepared,false);return;}
+    fontWorkflow.resolve(()->fonts,true,this::fontSummary,scope->admitQueue(prepared),()->endQueueImport(prepared,false));
+   });
+   handedOff=true;
+  }catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}
+  finally{if(!handedOff)endQueueImport(prepared,false);}
+  },"queue-import").start();
+ }
+ private void admitQueue(JSONArray prepared){
+  new Thread(()->{
+   boolean admitted=false;
+   try{
+    RenderQueue.enqueue(this,prepared);
+    admitted=true;
+    runOnUiThread(()->{emit("queueState","items",RenderQueue.snapshot(this));startQueueWithPermissions();});
+   }catch(Exception error){runOnUiThread(()->emit("commandError","message",PublicErrors.message(error)));}
+   finally{endQueueImport(prepared,admitted);}
+  },"queue-admission").start();
+ }
+ private void endQueueImport(JSONArray prepared,boolean admitted){
+  if(!admitted)for(int i=0;i<prepared.length();i++)RenderQueue.cleanup(this,prepared.optJSONObject(i).optString("id"));
+  importing=false;
+  runOnUiThread(()->emit("queueIdle"));
  }
  private void beginRender(){
   RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}
@@ -261,6 +311,7 @@ public final class StudioActivity extends MainActivity {
  }
  private void renderState(JSONObject s){
   if(closed||!bridgeReady||s.optString("phase").isEmpty())return;
+  if(fontRenderPreparing&&!RenderService.busy(s))return;
   working=RenderService.busy(s);
   if(working){if(!stageFailed)stage.onPause();emit("renderState","state",s);return;}
   if(!stageFailed)stage.onResume();String id=s.optString("id"),phase=s.optString("phase");
@@ -289,8 +340,8 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onActivityResult(int r,int code,Intent data){
   if(r==4){JSONObject options=pendingQueueOptions;pendingQueueOptions=null;if(code==RESULT_OK&&data!=null&&options!=null)importQueue(data,options);return;}
   if(r==3){if(code==RESULT_OK&&data!=null&&data.getData()!=null&&!importing){importing=true;emit("audioImporting");new Thread(()->{try{JSONObject item=AudioAssets.importFile(this,data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("audioSelected","item",item);});}catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;runOnUiThread(()->emit("audioIdle"));}},"audio-import").start();}return;}
-  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("file","code",html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
+  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed){fontWorkflow.newImport();nextPickedFontHtml=html.trim();emit("file","code",html);}});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
   super.onActivityResult(r,code,data);
  }
- @Override protected void onDestroy(){closed=true;readyPoll++;if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}
+ @Override protected void onDestroy(){closed=true;readyPoll++;if(fontWorkflow!=null)fontWorkflow.close();if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}
 }

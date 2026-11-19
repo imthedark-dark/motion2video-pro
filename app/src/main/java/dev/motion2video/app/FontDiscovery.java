@@ -15,6 +15,8 @@ final class FontDiscovery {
  private static final Pattern TAG = Pattern.compile("^</?([a-z][a-z0-9:-]*)", Pattern.CASE_INSENSITIVE);
  private static final Pattern ATTRIBUTE = Pattern.compile("([a-zA-Z][a-zA-Z0-9:_-]*)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))");
  private static final Pattern IMPORT = Pattern.compile("(?i)(?:^|[;}])\\s*@import\\s+(?:url\\(\\s*)?(?:\"([^\"\\r\\n]{1,4096})\"|'([^'\\r\\n]{1,4096})'|([^\\s);]{1,4096}))");
+ private static final Set<String> RAW_TAGS = new HashSet<>(Arrays.asList(
+  "style","script","textarea","title","xmp","iframe","noscript"));
  private static final Pattern FAMILY = Pattern.compile("(?i)(?:^|[;{])\\s*font-family\\s*:\\s*([^;{}]{1,1024})");
  private static final Set<String> GENERIC = new HashSet<>(Arrays.asList(
   "serif","sans-serif","monospace","system-ui","cursive","fantasy","emoji","math","fangsong","inherit","initial","unset","revert"));
@@ -25,6 +27,7 @@ final class FontDiscovery {
  static FontDiscovery scan(String html) {
   FontDiscovery result = new FontDiscovery();
   if (html.length() > MAX_HTML) return result;
+  int templates=0;
   for (int start = html.indexOf('<'); start >= 0;) {
    if (html.startsWith("<!--", start)) {
     int end = html.indexOf("-->", start + 4);
@@ -36,15 +39,19 @@ final class FontDiscovery {
    if (end < 0) break;
    String tag = html.substring(start, end + 1);
    Matcher name = TAG.matcher(tag);
-   if (name.find() && !tag.startsWith("</")) {
+   if (name.find()) {
     String type = name.group(1).toLowerCase(Locale.ROOT);
-    if (Arrays.asList("style","script","textarea","title","xmp","iframe","noscript").contains(type)) {
+    boolean closingTag=tag.startsWith("</");
+    if(type.equals("template"))templates=closingTag?Math.max(0,templates-1):templates+1;
+    if(closingTag){start=html.indexOf('<',end+1);continue;}
+    if (RAW_TAGS.contains(type)) {
      int close = closing(html, end + 1, type);
      if (close < 0) break;
-     if (type.equals("style")) result.css(html.substring(end + 1, Math.min(close, end + 1 + result.cssLeft)), true);
+     if (templates==0&&type.equals("style")) result.css(html.substring(end + 1, Math.min(close, end + 1 + result.cssLeft)), true);
      start = close;
      continue;
     }
+    if(templates>0){start=html.indexOf('<',end+1);continue;}
     Map<String,String> attrs = new HashMap<>();
     Matcher attr = ATTRIBUTE.matcher(tag);
     attr.region(name.end(), tag.length());
@@ -89,7 +96,7 @@ final class FontDiscovery {
   int length = Math.min(value.length(), cssLeft);
   if (length == 0) return;
   cssLeft -= length;
-  String css = value.substring(0,length).replaceAll("(?s)/\\*.*?(?:\\*/|$)", "");
+  String css = withoutComments(value.substring(0,length));
   if (allowImports) {
    int depth=0;
    boolean statement=true;
@@ -119,6 +126,31 @@ final class FontDiscovery {
    String name = clean(item.replaceFirst("(?i)\\s*!important\\s*$", ""));
    if (name != null && !GENERIC.contains(name.toLowerCase(Locale.ROOT)) && declared.size()<MAX_FAMILIES) declared.add(name);
   }
+ }
+
+ private static String withoutComments(String text){
+  StringBuilder out=new StringBuilder(text.length());
+  char quote=0;
+  for(int i=0;i<text.length();i++){
+   char c=text.charAt(i);
+   if(quote==0&&c=='/'&&i+1<text.length()&&text.charAt(i+1)=='*'){
+    int end=text.indexOf("*/",i+2);
+    if(end<0)break;
+    i=end+1;
+    out.append(' ');
+    continue;
+   }
+   out.append(c);
+   if(quote!=0&&c=='\\'&&i+1<text.length())out.append(text.charAt(++i));
+   else if(c==quote)quote=0;
+   else if(quote==0&&(c=='\''||c=='"'))quote=c;
+  }
+  return out.toString();
+ }
+
+ void merge(FontDiscovery other){
+  for(String family:other.google)if(google.size()<MAX_FAMILIES)google.add(family);
+  for(String family:other.declared)if(declared.size()<MAX_FAMILIES)declared.add(family);
  }
 
  private void reference(String url) {
