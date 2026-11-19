@@ -168,7 +168,7 @@ public final class StudioActivity extends MainActivity {
    try{downloads.openIntent(savedDownload.getString("uri"));emit("saved","item",savedDownload);emitDownloads();return;}catch(Exception ignored){savedSource="";savedDownload=null;}
   }
   saving=true;emit("saving");
-  if(Build.VERSION.SDK_INT<29&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},STORAGE_REQUEST);return;}
+  if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},STORAGE_REQUEST);return;}
   final String mime=resultMime,ext=resultExt;
   new Thread(()->{try{
    JSONObject item=downloads.save(source,mime,ext);
@@ -177,7 +177,11 @@ public final class StudioActivity extends MainActivity {
  }
  @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){
   super.onRequestPermissionsResult(request,permissions,grants);
-  if(request==RENDER_PERMISSIONS){if(pendingRender!=null)beginRender();return;}
+  if(request==RENDER_PERMISSIONS){
+   if(PermissionPolicy.notifications(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)emit("permissionNotice","message","اعلان‌ها مجاز نیستند؛ رندر ادامه دارد. برای دیدن پیشرفت یا توقف، به برنامه برگرد.");
+   if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)emit("permissionNotice","message","دسترسی دانلودها مجاز نیست؛ ویدیو در برنامه می‌ماند و بعداً می‌توانی دوباره ذخیره کنی.");
+   if(pendingRender!=null)beginRender();return;
+  }
   if(request==STORAGE_REQUEST){saving=false;if(grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)saveCurrent();else emit("downloadError","message","در اندروید ۸ و ۹ برای ذخیره در دانلودها، دسترسی حافظه لازم است. ویدیو هنوز برای ذخیرهٔ مجدد در دسترس است.");}
  }
  @Override protected void export(){
@@ -188,8 +192,8 @@ public final class StudioActivity extends MainActivity {
    JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked()).put("onlineResources",onlineResourcesAllowed);
    pendingRender=RenderRequest.create(editor.getText().toString(),options);getPreferences(0).edit().putString("code",pendingRender.html).apply();
    ArrayList<String> permissions=new ArrayList<>();
-   if(android.os.Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
-   if(android.os.Build.VERSION.SDK_INT<29&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+   if(PermissionPolicy.notifications(android.os.Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
+   if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
    if(!permissions.isEmpty()){pendingRender.write(this);working=true;requestPermissions(permissions.toArray(new String[0]),RENDER_PERMISSIONS);}else beginRender();
   }catch(Exception e){working=false;pendingRender=null;emit("error","message",e.getMessage()==null?"شروع رندر انجام نشد.":e.getMessage());}
  }

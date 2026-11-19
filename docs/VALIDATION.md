@@ -27,6 +27,12 @@ No microphone/audio track, ProRes/MOV alpha output or automatic recovery after f
 
 Version 1.4.1 packages the same rendering implementation with license notices and a version increment. Its APK/asset integrity, signature and source build are checked separately. Comparing the APKs found byte-identical `classes.dex` and `assets/studio.html`, with the new license files present; the recorded native rendering results above are from v1.4.0, not a new device acceptance run of v1.4.1.
 
+## Subsequent Phase 2 emulator evidence
+
+On 2026-11-19, the non-debuggable R8/resource-shrunk release completed the UI/native bridge, 360p30 H.264 render, automatic save and playable-result smoke test on the Android 11/API30 software emulator. FileProvider read access succeeded and write access was rejected. FFprobe and full FFmpeg decode confirmed 30 frames, one second, 640×360, YUV420P, BT.709 limited, with moov before mdat. See `tests/fixtures/verified-phase2-release-360p.mp4` and `phase2-release-validation.json`.
+
+Debug fixtures also passed actual WebView/worker/bridge checks, manual invocation of the service timeout handler during an active render (stopped service, deleted partial output, retained terminal error), and actual service WebView renderer termination with cleanup. The timeout invocation on API30 is not proof of Android 15's real six-hour quota scheduling. No physical-phone acceptance was added. [Phase 2 instructions](PHASE2_ANDROID.md).
+
 ## Repeat source and browser checks
 
 Prerequisites: JDK 17+, Python 3, Node/npm, SDK Platform 35 / Build Tools 35.0.0 for APK builds; Chromium for browser checks.

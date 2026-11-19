@@ -51,3 +51,43 @@ Android runtime acceptance is **not verified**. The API30 software emulator boot
 In particular, vendor Android behavior of intercepted local HTTPS assets with `setBlockNetworkLoads(true)` and actual process-death callback cleanup still needs the device commands in PHASE1_SECURITY.md. The Chromium tests exercise the production Java CSP against an unknown external TLS origin; native CDN aliases additionally rely on StageAssets and its worker/page interception boundaries. These host passes are not a substitute for that Android acceptance run.
 
 M1/I1/I2/S1/P1 follow-up work remains assigned to its original later phase. No manifest/FileProvider/R8, import-limit/watchdog, release migration, privacy feature, audio/queue or i18n work was started. Phase 2 requires the user's confirmation.
+
+## Phase 2 — verified baseline before implementation
+
+Baseline: `624e48b`. The user authorized Phase 2 on 2026-11-19.
+
+- Manifest already limits WRITE_EXTERNAL_STORAGE to API28, declares notification/FGS permissions, exports only the launcher, disables backup and cleartext, and uses dataSync/mediaProcessing service types. No receivers exist. A dedicated network-security XML and explicit release debuggable/minify/resource-shrink settings are missing.
+- DownloadRepository already opens registered `content://` URIs. Its legacy authority uses a custom read-only ContentProvider, not AndroidX FileProvider. Keep that authority and `/file/` root mapping so recorded Android 8/9 URIs remain compatible; do not widen file roots or grant writes.
+- `RenderService.onTimeout` invokes `finishService`, which nulls request while `runJob` dereferences request in saving/finally. Cancellation does not stop the Downloads copy. Worker callbacks can outlive a stopped service and need a publication guard. Handle the OS deadline without waiting for a long worker join on the main thread.
+- Storage requests use SDK<29 (correct for this app's minSDK26); notification requests use SDK>=33. Permission-denial callbacks already continue rendering, but denial should be explicitly explained without unlocking the job or treating it as a render failure.
+- The SDK-only builder has no AndroidX dependency/resource merge or R8/resource-shrinking pipeline. Standard Gradle builds are needed for AndroidX FileProvider and a genuinely minimized release. Keep `python3 build.py` as the contributor entry point and preserve local debug-key override support. Production signing remains Phase 4.
+
+Implementation/verification results will be recorded below. No Phase 3 work is authorized yet.
+
+### Phase 2 implementation and measured verification
+
+- Replaced the custom provider with AndroidX FileProvider and a read-only generated-export guard. Existing authority/root URIs are retained. No cache/storage root is shared; MediaStore remains for API29+. Verified the merged ProfileInstallReceiver is non-exported, alongside both providers, internal Activity and service. Only the launcher is exported.
+- Added explicit system-CA-only, cleartext-denying network XML; kept backup false and correct FGS permissions/types. Shared permission API bounds and informational denial notices preserve rendering without granting access or unlocking the active UI.
+- Fixed the timeout request-lifetime race: worker uses its captured job, OS timeout cancels work/releases wake/stops promptly, cancelled Downloads copy cleans its own pending output, stale service publishers are ignored and interrupted private files have recovery cleanup. No main-thread worker join was added.
+- Moved the Python entry point onto the checked Gradle 8.9 wrapper, AndroidX dependency merge and real AGP8.7.3 R8/resource shrinking. Default debug builds remain signed locally; release is non-debuggable and unsigned until Phase 4. Keep rules preserve framework/MessagePort entry points without preventing app obfuscation. The whole encoder/frame/YUV pipeline and output settings remain unchanged.
+
+| Verification executed on 2026-11-19 | Result |
+| --- | --- |
+| `python3 build.py` | PASS: Gradle debug APK |
+| `python3 build.py --release` | PASS: actual minifyReleaseWithR8 / shrinkReleaseRes / release vital lint tasks; unsigned release produced |
+| `tools/verify_phase2.py` | PASS: compiled debug/release manifests, all component flags, permission cap/FGS bits, FileProvider roots, network XML, canonical UI, renamed release XML resolution and actual obfuscated R8 class mappings |
+| `npm run test:ui` | PASS: existing UI/download/security cases plus permission-denial message retaining the render lock |
+| `npm run test:clock` | PASS: both animation-clock paths |
+| `python3 tools/test_yuv.py` | PASS: all 72 byte-identical cases |
+| `python3 tools/test_platform.py` | PASS: API boundaries, byte-identical successful copy, pre-cancel and mid-copy cancellation |
+| Native `ReleaseSmokeTest`, minified non-debuggable APK on API30 emulator | PASS: UI/bridge, 30-frame 640×360 H.264 export, saved playback, FileProvider read and write rejection |
+| Native `WebSecurityTest`, debug APK on API30 emulator | PASS: native page/worker settings, intercepted resources and strict bridge schema |
+| Native `ServiceTimeoutTest`, debug API30 emulator | PASS: manual timeout callback during active frames, service stopped, partial output removed, terminal state not overwritten |
+| Native `RendererGoneTest`, debug API30 emulator | PASS: actual renderer terminated, app survived, partial output removed |
+| Independent FFprobe/full FFmpeg decode of minified-release output | PASS: 1s, 30 frames, 640×360, H.264/YUV420P, BT.709 limited, faststart |
+
+Release QA used a temporary development-signed copy outside Git, not production signing or a new public release. Raw runtime logs/private paths and keys are excluded; a generated sample and sanitized JSON evidence are in tests/fixtures. These later tests close the inherited WebView/runtime evidence gap on this particular Phase 2 emulator build; they do not retroactively claim that the exact Phase 1 binary ran or that physical phones were tested.
+
+Environment preparation used a checksum-verified full JDK17 because the workspace's original stripped JDK lacked jlink, plus local proxy/trust configuration outside the repository. TLS verification was not disabled in the app or build. The source wrapper distribution is SHA-256 pinned. Library license notices were added for AndroidX and related runtime dependencies.
+
+Remaining acceptance gaps: physical devices; actual API26/28 storage prompts, API33+ notification denial, Android15 real quota dispatch, Windows helper execution, WebGL/1080p60/all codec combinations. Overall watchdog/memory/import hardening is Phase 3; signing/supply chain is Phase 4. The user must confirm before Phase 3.

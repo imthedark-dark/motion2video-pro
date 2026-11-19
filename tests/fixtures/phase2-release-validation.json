@@ -1,0 +1,31 @@
+{
+  "platform": "Android 11/API30 software emulator; not a physical phone",
+  "build": "Gradle release: R8/minified, resource-shrunk, debuggable=false; development signing for local QA only",
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 640,
+        "height": 360,
+        "pix_fmt": "yuv420p",
+        "color_range": "tv",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "r_frame_rate": "30/1",
+        "nb_read_frames": "30"
+      }
+    ],
+    "format": {
+      "duration": "1.000000",
+      "size": "22312"
+    }
+  },
+  "fileProviderReadOnly": true,
+  "releaseUiBridgeRenderSavePlayback": true,
+  "sha256": "72e70a03128ff34d3742235e6f227f53d812f48968b55d61921cc48a0857d4b7",
+  "faststartMoovBeforeMdat": true,
+  "fullDecodePassed": true
+}

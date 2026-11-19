@@ -11,3 +11,5 @@ Project attribution: **Dark**. Original project work is licensed under [MIT](LIC
 - Android SDK, JDK, Chromium, FFmpeg and Playwright are external build/test/runtime tools, not part of the APK's native media engine.
 
 New notice files added after v1.4.0 are included in the v1.4.1 APK and subsequent builds. Publishing this source update does not retroactively replace the immutable APK/tag.
+
+Phase 2 adds AndroidX Core 1.13.1 (including FileProvider) and its AndroidX/Kotlin/Guava runtime dependencies under Apache-2.0. The full license is bundled as `app/src/main/assets/licenses/androidx-Apache-2.0.txt`. Copyrights remain with the Android Open Source Project/AndroidX contributors, JetBrains and the respective upstream authors. Gradle 8.9 wrapper is Apache-2.0 build tooling, not part of the APK; generated wrapper notices are retained. The Gradle distribution is checked by SHA-256. Native dependencies are resolved through the pinned Gradle declaration; extended supply-chain locking/review remains Phase 4.

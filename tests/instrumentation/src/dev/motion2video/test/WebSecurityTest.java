@@ -20,7 +20,7 @@ public final class WebSecurityTest extends Instrumentation {
   require(response.invoke(null,target,Uri.parse("https://security-test.invalid/fetch"),true)==null,"Explicit HTTPS opt-in unavailable");
   Activity a=startActivitySync(new Intent().setClassName("dev.motion2video.app","dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));WebView stage=(WebView)field(a,"stage"),studio=(WebView)field(a,"studio");
   runOnMainSync(()->{for(WebView web:new WebView[]{stage,studio}){WebSettings s=web.getSettings();require(!s.getAllowFileAccess()&&!s.getAllowContentAccess()&&!s.getAllowFileAccessFromFileURLs()&&!s.getAllowUniversalAccessFromFileURLs(),"Unsafe file settings");require(s.getSafeBrowsingEnabled()&&s.getBlockNetworkLoads(),"Safety/network defaults missing");}});
-  ServiceWorkerWebSettings sw=ServiceWorkerController.getInstance().getServiceWorkerWebSettings();require(sw.getBlockNetworkLoads()&&!sw.getAllowFileAccess()&&!sw.getAllowContentAccess(),"Service-worker network escape available");
+  runOnMainSync(()->{ServiceWorkerWebSettings sw=ServiceWorkerController.getInstance().getServiceWorkerWebSettings();require(sw.getBlockNetworkLoads()&&!sw.getAllowFileAccess()&&!sw.getAllowContentAccess(),"Service-worker network escape available");});
   out.putString("result","PASS");finish(Activity.RESULT_OK,out);
  }catch(Throwable e){out.putString("result","FAIL");out.putString("error",e.getClass().getSimpleName());finish(Activity.RESULT_CANCELED,out);}}
 }

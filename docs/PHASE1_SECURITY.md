@@ -1,6 +1,6 @@
 # Phase 1: WebView and native bridge boundary
 
-This phase changes source on `security/phase-1`; it is not an update to the already-published v1.4.1 binary. See [AUDIT_REPORT.md](AUDIT_REPORT.md) for verified baseline findings and [DECISIONS.md](DECISIONS.md) for tradeoffs. Later phases are not started.
+This phase changes source on `security/phase-1`; it is not an update to the already-published v1.4.1 binary. See [AUDIT_REPORT.md](AUDIT_REPORT.md) for verified baseline findings and [DECISIONS.md](DECISIONS.md) for tradeoffs. Phase 1 originally stopped before later phases. Subsequent authorized Phase 2 emulator checks exercised the inherited boundary and renderer-loss handling; see [Phase 2](PHASE2_ANDROID.md).
 
 Imported HTML runs with file/content and file-URL cross-access disabled, DOM storage disabled, Safe Browsing enabled and navigation rejected. Trusted studio storage remains enabled to retain the editor's code. No JavaScriptInterface exists. A private MessagePort goes only to the trusted studio; the animation gets only a frame acknowledgement channel. Undeclared commands, extra keys and coerced scalar types are rejected. Registered-download lookup remains the boundary for opening a file.
 

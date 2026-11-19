@@ -65,7 +65,13 @@ Android 10+ uses MediaStore.Downloads. Android 8 and 9 require storage permissio
 
 ## Security hardening — Phase 1 review
 
-On `security/phase-1`, imported content is offline by default. Allow online resources requires Persian confirmation; enabling it lets user code contact HTTPS servers. Bundled native libraries/fonts remain local. Separate WebViews, a closed MessagePort schema, early CSP, explicit safety settings and renderer-loss cleanup harden the boundary. See [audit findings](docs/AUDIT_REPORT.md), [decisions](docs/DECISIONS.md) and [security checks/limits](docs/PHASE1_SECURITY.md). This source work is not yet in the published v1.4.1 APK; physical-device and native renderer-kill acceptance remain unverified.
+On `security/phase-1`, imported content is offline by default. Allow online resources requires Persian confirmation; enabling it lets user code contact HTTPS servers. Bundled native libraries/fonts remain local. Separate WebViews, a closed MessagePort schema, early CSP, explicit safety settings and renderer-loss cleanup harden the boundary. See [audit findings](docs/AUDIT_REPORT.md), [decisions](docs/DECISIONS.md) and [security checks/limits](docs/PHASE1_SECURITY.md). This source work is not yet in the published v1.4.1 APK; Physical-device acceptance remains unverified; subsequent Phase 2 emulator checks are recorded below.
+
+## Android hardening — Phase 2 review
+
+`security/phase-2` adds narrow, read-only AndroidX FileProvider URIs, explicit network security, permission-denial notices and safe foreground-service timeout cleanup. Debug and non-debuggable, R8/resource-shrunk release builds use the checked Gradle wrapper through `python3 build.py` (`--release` creates an unsigned release). Use a full JDK 17; initial dependency downloads need network access.
+
+The minified release rendered/saved/played a 360p30 H.264 sample on an Android 11 emulator; native FileProvider, timeout and renderer-loss checks passed. Physical devices and actual Android 15 quota dispatch remain unverified. See [Phase 2 details](docs/PHASE2_ANDROID.md) and [audit evidence](docs/AUDIT_REPORT.md). Published APKs are unchanged.
 
 ## Background rendering and speed
 
