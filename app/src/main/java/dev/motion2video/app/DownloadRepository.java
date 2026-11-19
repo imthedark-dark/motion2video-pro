@@ -45,5 +45,16 @@ public final class DownloadRepository {
   }catch(Exception e){if(Build.VERSION.SDK_INT>=29&&uri!=null){try{resolver.delete(uri,null,null);}catch(Exception ignored){}}if(legacyCreated)legacy.delete();throw e;}
  }
  private synchronized void remember(JSONObject item)throws IOException{JSONArray next=new JSONArray();next.put(item);JSONArray old=list();for(int i=0;i<old.length();i++)next.put(old.optJSONObject(i));if(!prefs.edit().putString("items",next.toString()).commit())throw new IOException("ثبت فهرست دانلودها انجام نشد.");}
+ /** Shares only a registered, generated export through the existing narrow provider root. */
+ public Intent shareIntent(String uri)throws Exception{
+  JSONObject item=find(uri);String name=item.getString("name");
+  if(!name.matches("Motion2Video_[0-9]{8}_[0-9]{6}_[0-9]{3}_[a-f0-9]{6}\\.(mp4|webm)"))throw new IOException("نشانی فایل خروجی معتبر نیست.");
+  File folder=legacyFolder().getCanonicalFile(),file=new File(folder,name).getCanonicalFile();
+  if(!folder.equals(file.getParentFile())||!file.isFile())throw new FileNotFoundException();
+  Uri content=FileProvider.getUriForFile(context,context.getPackageName()+".downloads",file);
+  try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(content,"r")){if(fd==null)throw new FileNotFoundException();}
+  Intent send=new Intent(Intent.ACTION_SEND).setType(item.getString("mime")).putExtra(Intent.EXTRA_STREAM,content).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+  send.setClipData(ClipData.newRawUri(name,content));return Intent.createChooser(send,"اشتراک ویدیو").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+ }
  public Intent openIntent(String uri)throws Exception{JSONObject item=find(uri);Uri content=Uri.parse(uri);try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(content,"r")){if(fd==null)throw new IOException("فایل پیدا نشد؛ ممکن است از دانلودها پاک یا جابه‌جا شده باشد.");}Intent intent=new Intent(Intent.ACTION_VIEW).setDataAndType(content,item.getString("mime")).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri(item.getString("name"),content));return intent;}
 }

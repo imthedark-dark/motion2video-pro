@@ -22,3 +22,8 @@ Pre-feature revalidation on security/phase-5: debug and unsigned/R8 release buil
 Implemented native preflight on a worker thread, positive encoder cache and deterministic nearest-profile ranking. Unsupported profiles show a Persian reason plus an explicit Apply suggestion dialog; settings are never silently changed or auto-rendered. Cancellation invalidates a pending probe. Existing encoder checks remain enforced at execution. No encode, dimensions, bitrate, timing or YUV changes.
 
 Validation: debug and unsigned/R8 release builds; UI/security, clock, 72 YUV, platform, input, privacy, request-schema, supply-chain, asset and compiled-manifest/privacy checks all PASS. Production capability ranking tests PASS (codec/orientation/upscale/AVC fallback). Native MediaCodec availability and dialog acceptance still require a physical device.
+
+## 6f — share exported video
+Added a closed shareDownload command, generated-name/canonical-parent validation, read-only FileProvider URI/ClipData, and a system chooser from each history row. No provider roots expanded. The history URI is only an identity lookup; callers cannot supply a file path. Deleted/moved files fail safely; scoped-storage/OEM direct-path failures require re-export or the system Downloads manager. Host schema rejects non-content URIs; browser transport verifies the selected registered URI and safe text rendering. Actual receiving-app grants need device acceptance.
+
+6f validation: debug and unsigned/R8 release builds and full feature-check suite PASS (UI sharing transport, 165 request-schema cases, clock, 72 YUV, platform, input, privacy, feature ranking, supply-chain, asset/manifest checks). No production signing or publication.

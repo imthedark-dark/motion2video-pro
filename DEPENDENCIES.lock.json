@@ -260,8 +260,8 @@
     },
     "studio.html": {
       "component": "project",
-      "sha256": "f194fb4eef023deb827a10c0c65aa3f836acac5daa9cc42c3612cabce7cf44f9",
-      "bytes": 153230
+      "sha256": "e60ab1f7cd9d50ff26fa5a539ee1397c31131a47ffd3d607ba8aa13ea6080724",
+      "bytes": 153508
     },
     "vendor/DrawSVGPlugin.min.js": {
       "component": "gsap-motion",

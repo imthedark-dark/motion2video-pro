@@ -16,6 +16,7 @@ public final class RequestValidationTest {
   for(double duration:new double[]{1,300}){RenderRequest r=RenderRequest.create("<html></html>",options().put("duration",duration));if(r.frames!=Math.round(duration*60))throw new AssertionError("Frame rounding changed");checks++;}
   JSONObject extra=options().put("arbitraryPath","/private");reject(extra,true);
   for(String type:new String[]{"undeclaredMethod","openFile","exec","fetch"}){try{BridgeValidation.command(new JSONObject().put("type",type));throw new AssertionError("Unknown command accepted");}catch(java.io.IOException expected){checks++;}}
+  for(String command:new String[]{"openDownload","shareDownload"}){BridgeValidation.command(new JSONObject().put("type",command).put("uri","content://registered/export"));checks++;for(String uri:new String[]{"file:///private","https://outside.invalid/video"}){try{BridgeValidation.command(new JSONObject().put("type",command).put("uri",uri));throw new AssertionError("Non-content URI accepted");}catch(java.io.IOException expected){checks++;}}}
   System.out.println("PASS: "+checks+" production bridge/request schema and unchanged output-setting cases (host JSON runtime)");
  }
 }

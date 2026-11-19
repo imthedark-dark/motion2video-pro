@@ -16,7 +16,7 @@ final class BridgeValidation {
     int fps=v.getInt("fps"),w=v.getInt("width"),h=v.getInt("height"),bits=v.getInt("bitrate");if((fps!=30&&fps!=60)||(bits!=12000000&&bits!=16000000&&bits!=20000000)||!Arrays.asList(CodecSupport.MIME).contains(v.getString("mime"))||!((w==640&&h==360)||(w==1280&&h==720)||(w==1920&&h==1080)||(w==1080&&h==1920)))invalid();break;
    case "layout":
     keys(o,"type","dpr","x","y","width","height","clipTop","visible");number(o,"dpr",.01,10,false);number(o,"x",-100000,100000,false);number(o,"y",-100000,100000,false);number(o,"width",1,10000,false);number(o,"height",1,10000,false);if(o.has("clipTop"))number(o,"clipTop",0,100000,false);if(o.has("visible"))bool(o,"visible");break;
-   case "openDownload":keys(o,"type","uri");String uri=string(o,"uri",2048);if(!uri.startsWith("content://"))invalid();break;
+   case "shareDownload":case "openDownload":keys(o,"type","uri");String uri=string(o,"uri",2048);if(!uri.startsWith("content://"))invalid();break;
    case "onlineResources":keys(o,"type","enabled");bool(o,"enabled");break;
    case "hello":case "renderState":case "downloads":case "cancel":case "capabilities":case "openDownloads":case "save":case "chooseFile":keys(o,"type");break;
    default:invalid();

@@ -112,9 +112,9 @@ public final class StudioActivity extends MainActivity {
    if(type.equals("layout")){layout(m);return;}
    if(type.equals("cancel")){if(pendingRender!=null){try{RenderRequest.file(this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;working=false;emit("cancelled");}else RenderService.cancel(this);return;}
    if(type.equals("capabilities")){stage.setVisibility(View.INVISIBLE);emit("capabilities","text",CodecSupport.report());return;}
-   if(type.equals("openDownloads")||type.equals("openDownload")||type.equals("save")){
+   if(type.equals("openDownloads")||type.equals("openDownload")||type.equals("shareDownload")||type.equals("save")){
     if(working||saving){emit("downloadError","message","رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");return;}
-    try{if(type.equals("openDownloads"))openDownloads();else if(type.equals("openDownload"))openDownload(m.getString("uri"));else saveCurrent();}catch(Exception e){emit("downloadError","message",PublicErrors.message(e));}return;
+    try{if(type.equals("openDownloads"))openDownloads();else if(type.equals("openDownload"))openDownload(m.getString("uri"));else if(type.equals("shareDownload"))startActivity(downloads.shareIntent(m.getString("uri")));else saveCurrent();}catch(Exception e){emit("downloadError","message",PublicErrors.message(e));}return;
    }
    if(working||saving)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");
    if(type.equals("preview")||type.equals("render")){
