@@ -38,9 +38,16 @@ final class OffscreenStage implements AutoCloseable {
    window.getWindow().setBackgroundDrawableResource(android.R.color.black);
    web=new WebView(window.getContext());web.setBackgroundColor(Color.BLACK);web.setLayerType(request.gpu?View.LAYER_TYPE_HARDWARE:View.LAYER_TYPE_SOFTWARE,null);
    WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setDomStorageEnabled(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);settings.setMediaPlaybackRequiresUserGesture(true);
-   WebViewSecurity.configure(web,context,false);WebViewSecurity.network(web,request.onlineResources);
+   PrivateWebChromeClient diagnostics=WebViewSecurity.configure(web,context,false);WebViewSecurity.network(web,request.onlineResources);
    web.setWebViewClient(new WebViewClient(){
-    @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){return StageAssets.response(context,r.getUrl(),request.onlineResources);}
+    @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest requestInfo){
+     Uri url=requestInfo.getUrl();
+     WebResourceResponse response=StageAssets.response(context,url,request.onlineResources,notice->{
+      if((notice&StageAssets.FONT_BLOCKED)!=0)diagnostics.blocked(url);
+     });
+     if(response!=null&&response.getStatusCode()==403)diagnostics.blocked(url);
+     return response;
+    }
     @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){WebViewSecurity.rendererExit(v,context,detail,request.onlineResources,false);if(rendererFailure==null)rendererFailure=new IOException(WebViewSecurity.RENDERER_ERROR);if(!closed)RenderService.rendererGone(context);closeNow();return true;}
     @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
     @Override public void onPageFinished(WebView v,String url){

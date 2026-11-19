@@ -20,6 +20,7 @@ final class WebViewSecurity {
    PrivateWebChromeClient client=(PrivateWebChromeClient)view.getWebChromeClient();
    client.first="none";
    client.directive="none";
+   client.blockedRequest="none";
   }
  }
  static void rendererExit(WebView view,Context context,RenderProcessGoneDetail detail,boolean online,boolean trusted){
@@ -36,11 +37,12 @@ final class WebViewSecurity {
    +" policy="+(trusted?"studio":online?"import-online":"import-local-only")+" layer="+view.getLayerType()
    +" networkBlocked="+view.getSettings().getBlockNetworkLoads()+" fileAccess="+view.getSettings().getAllowFileAccess()
    +" contentAccess="+view.getSettings().getAllowContentAccess()+" safeBrowsing="+view.getSettings().getSafeBrowsingEnabled()
-   +" firstConsoleCategory="+client.first+" cspDirective="+client.directive);
+   +" firstConsoleCategory="+client.first+" cspDirective="+client.directive+" blockedRequest="+client.blockedRequest);
  }
  @SuppressWarnings("deprecation")
- static void configure(WebView view,Context context,boolean trusted){
-  view.setWebChromeClient(new PrivateWebChromeClient(debug(context)));
+ static PrivateWebChromeClient configure(WebView view,Context context,boolean trusted){
+  PrivateWebChromeClient client=new PrivateWebChromeClient(debug(context));
+  view.setWebChromeClient(client);
   WebSettings s=view.getSettings();
   s.setAllowFileAccess(false);s.setAllowContentAccess(false);
   s.setAllowFileAccessFromFileURLs(false);s.setAllowUniversalAccessFromFileURLs(false);
@@ -55,6 +57,7 @@ final class WebViewSecurity {
   workers.setServiceWorkerClient(new ServiceWorkerClient(){@Override public WebResourceResponse shouldInterceptRequest(WebResourceRequest request){return StageAssets.blocked();}});
   CookieManager.getInstance().setAcceptThirdPartyCookies(view,false);
   WebView.setWebContentsDebuggingEnabled(debug(context));
+  return client;
  }
  static void network(WebView view,boolean online){view.getSettings().setBlockNetworkLoads(!online);}
 }

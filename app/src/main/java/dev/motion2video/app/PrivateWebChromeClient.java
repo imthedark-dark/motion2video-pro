@@ -1,5 +1,6 @@
 package dev.motion2video.app;
 
+import android.net.Uri;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import java.util.Locale;
@@ -9,6 +10,15 @@ final class PrivateWebChromeClient extends WebChromeClient {
  private final boolean debug;
  String first="none";
  String directive="none";
+ volatile String blockedRequest="none";
+ void blocked(Uri uri){
+  if(!debug||!blockedRequest.equals("none"))return;
+  String host=uri.getHost();
+  if("fonts.googleapis.com".equals(host))blockedRequest="google-font-stylesheet";
+  else if("fonts.gstatic.com".equals(host))blockedRequest="google-font-binary";
+  else if("motion.local".equals(host))blockedRequest="bundled-resource";
+  else blockedRequest="other-resource";
+ }
 
  PrivateWebChromeClient(boolean debug){this.debug=debug;}
 

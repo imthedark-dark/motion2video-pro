@@ -186,6 +186,7 @@ public final class StudioActivity extends MainActivity {
   cancelRenderAfterRendererExit();
   showRendererRecovery(WebViewSecurity.RECOVERY_HINT);
  }
+ @Override protected void onFontNotice(int flags){emit("fontNotice","replaced",(flags&StageAssets.FONT_REPLACED)!=0,"blocked",(flags&StageAssets.FONT_BLOCKED)!=0);}
  @Override protected void onStageContextLost(){emit("commandError","message",ImportedContent.CONTEXT_ERROR);}
  @Override protected void onRenderProgress(int done,int total){emit("progress","done",done,"total",total);}
  @Override protected void onRenderResult(File file){exportPath="/exports/"+UUID.randomUUID()+"."+resultExt;emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length());saveCurrent();}

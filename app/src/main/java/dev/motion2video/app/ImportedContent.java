@@ -9,7 +9,8 @@ public final class ImportedContent {
  }
  public static final String CONTEXT_ERROR="زمینهٔ Canvas یا WebGL از دست رفت یا ساخته نشد؛ اندازهٔ بافت‌ها و تعداد ذرات را کاهش بده و دوباره امتحان کن.";
  public static final String CONTEXT_CHECK="window.__m2vContextFailed===true";
- public static final String READY_SCRIPT="window.__m2vReady=false;Promise.resolve(document.fonts?document.fonts.ready:null).then(()=>{window.__m2vReady=true;});";
+ public static final String READY_SCRIPT="window.__m2vReady=false;Promise.race([Promise.resolve(document.fonts?document.fonts.ready:null).catch(()=>null),new Promise(resolve=>setTimeout(resolve,3000))]).then(()=>{window.__m2vReady=true;});";
+ public static final String PREVIEW_CHECK="("+CONTEXT_CHECK+"?1:0)|(window.__m2vFontBlocked===true?2:0)";
 
  /** Both native stages and the host fixture use the same document preparation. */
  public static String prepare(String html,String clock,String fonts,String token,boolean online){
@@ -23,6 +24,7 @@ public final class ImportedContent {
   html=html.replace("file:///android_asset/","https://motion.local/");
   String prefix="<meta http-equiv=\"Content-Security-Policy\" content=\""+csp(online)+"\">";
   prefix+="<script>window.__m2vContextFailed=false; ['webglcontextlost','webglcontextcreationerror','contextlost'].forEach(function(type){addEventListener(type,function(){window.__m2vContextFailed=true},true)});</script>";
+  if(!online)prefix+="<script>window.__m2vFontBlocked=false;addEventListener('securitypolicyviolation',function(e){if(e.effectiveDirective==='font-src'&&e.blockedURI.indexOf('https://fonts.gstatic.com/')===0)window.__m2vFontBlocked=true;});</script>";
   if(!online)prefix+="<script>['RTCPeerConnection','webkitRTCPeerConnection'].forEach(function(k){try{Object.defineProperty(window,k,{value:undefined,writable:false,configurable:false})}catch(_){}});</script>";
   int at=doctypeEnd(html);return html.substring(0,at)+prefix+html.substring(at);
  }

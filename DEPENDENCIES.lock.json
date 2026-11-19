@@ -117,6 +117,15 @@
       "license_files": [
         "fonts/vazirmatn-OFL.txt"
       ]
+    },
+    "font-orbitron": {
+      "name": "Orbitron",
+      "version": "2.001",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/orbitron",
+      "license_files": [
+        "fonts/orbitron-OFL.txt"
+      ]
     }
   },
   "assets": {
@@ -187,8 +196,8 @@
     },
     "fonts.css": {
       "component": "project",
-      "sha256": "4f09cb02e32e92e29f700537cb5f1772f906198d517790d73553c6cdbbaf7c1f",
-      "bytes": 921
+      "sha256": "035907dbb8dcc741b8a4de3389006d27e4f612145575f693f4e7ae131326119b",
+      "bytes": 1060
     },
     "gsap.min.js": {
       "component": "gsap-motion",
@@ -260,8 +269,8 @@
     },
     "studio.html": {
       "component": "project",
-      "sha256": "625dd500f6a3c1ae814d5e5151f473b36abd63d3ab194162ac98b68653c61c13",
-      "bytes": 170029
+      "sha256": "08c40077c1d011b97fdc8156fcd799842924479095e316365d529a22cfdbb4e1",
+      "bytes": 170834
     },
     "vendor/DrawSVGPlugin.min.js": {
       "component": "gsap-motion",
@@ -307,6 +316,16 @@
       "component": "project",
       "sha256": "66136dcad43048871ce6839eef750197444ef204c745388eda452e1da98c448c",
       "bytes": 1156
+    },
+    "fonts/orbitron-OFL.txt": {
+      "component": "font-orbitron",
+      "sha256": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
+      "bytes": 4426
+    },
+    "fonts/orbitron-Orbitron[wght].ttf": {
+      "component": "font-orbitron",
+      "sha256": "f42db2dd16e642258e35782916eceb1dcdbea06fb958d77ad71dc5963587e8fd",
+      "bytes": 38576
     }
   }
 }

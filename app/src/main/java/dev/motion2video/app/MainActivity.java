@@ -3,9 +3,10 @@ import android.app.*;import android.os.*;import android.content.*;import android
 public class MainActivity extends Activity {
  protected volatile boolean onlineResourcesAllowed,stageFailed;
  private boolean contextReported,recoveryShown;
+ private int fontNotices;
  private final Handler previewMonitor=new Handler(Looper.getMainLooper());
  protected Spinner codecChoice,sizeChoice,quality;protected CheckBox gpu;protected ScrollView workspace;protected int exportWidth=640,exportHeight=360;protected String resultMime="video/mp4",resultExt="mp4";protected long loadToken;
- protected WebView stage;protected EditText editor,duration;protected Spinner fps;protected TextView status,render;protected volatile boolean cancelled,working;protected File result;protected int generation;protected String savedCode="";
+ protected WebView stage;protected EditText editor,duration;protected Spinner fps;protected TextView status,render;protected volatile boolean cancelled,working;protected File result;protected volatile int generation;protected String savedCode="";
  protected final int orange=Color.rgb(255,59,0);protected LinearLayout root;protected VideoView video;
  protected int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
  protected TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(Color.WHITE);t.setPadding(dp(12),dp(10),dp(12),dp(10));return t;}
@@ -16,9 +17,19 @@ public class MainActivity extends Activity {
   root.addView(text("MOTION2VIDEO PRO  ▶",24));root.addView(text("استودیو HTML → MP4 • خروجی H.264 بدون صدا",12));
   ScrollView scroll=new ScrollView(this);workspace=scroll;LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
   stage=new WebView(this);stage.setBackgroundColor(Color.BLACK);applyPreviewLayer();stage.getSettings().setJavaScriptEnabled(true);stage.getSettings().setAllowFileAccess(false);stage.getSettings().setAllowContentAccess(false);stage.getSettings().setDomStorageEnabled(false);stage.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-  WebViewSecurity.configure(stage,this,false);WebViewSecurity.network(stage,false);
+  PrivateWebChromeClient diagnostics=WebViewSecurity.configure(stage,this,false);WebViewSecurity.network(stage,false);
   stage.setWebViewClient(new WebViewClient(){
-   @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest request){return StageAssets.response(MainActivity.this,request.getUrl(),onlineResourcesAllowed);}
+   @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request){
+    int token=generation;
+    Uri url=request.getUrl();
+    WebResourceResponse response=StageAssets.response(MainActivity.this,url,onlineResourcesAllowed,
+     notice->{
+      if((notice&StageAssets.FONT_BLOCKED)!=0)diagnostics.blocked(url);
+      previewMonitor.post(()->{if(!isDestroyed()&&!stageFailed&&token==generation)reportFontNotice(notice);});
+     });
+    if(response!=null&&response.getStatusCode()==403)diagnostics.blocked(url);
+    return response;
+   }
    @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){if(stageFailed)return true;WebViewSecurity.rendererExit(v,MainActivity.this,detail,onlineResourcesAllowed,false);stageFailed=true;cancelled=true;if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();onStageRendererGone();return true;}
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
    @Override public void onPageFinished(WebView v,String url){if(stageFailed||isDestroyed())return;v.evaluateJavascript(ImportedContent.READY_SCRIPT,null);onStagePageFinished();}
@@ -43,7 +54,7 @@ public class MainActivity extends Activity {
  protected String asset(String name){try(InputStream in=getAssets().open(name)){return read(in,4*1024*1024);}catch(Exception e){return "";}}
  protected volatile boolean importing;
  protected static String read(InputStream in,int max)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){if(out.size()+n>max)throw new IOException("فایل بیش از حد بزرگ است");out.write(b,0,n);}return out.toString("UTF-8");}
- protected void preview(){if(stageFailed){onRenderError(WebViewSecurity.RENDERER_ERROR);return;}generation++;savedCode=editor.getText().toString();String code=savedCode.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;", "top:0;right:0;bottom:0;left:0;inset:0;");contextReported=false;WebViewSecurity.resetDiagnostics(stage);String prepared=ImportedContent.prepare(code,asset("motion-clock.js"),asset("fonts.css"),"window.__m2vToken="+generation+";",onlineResourcesAllowed);getPreferences(0).edit().putString("code",savedCode).apply();stage.loadDataWithBaseURL("https://motion.local/",prepared,"text/html","UTF-8",null);previewMonitor.removeCallbacksAndMessages(null);monitorPreview(generation);}
+ protected void preview(){if(stageFailed){onRenderError(WebViewSecurity.RENDERER_ERROR);return;}generation++;savedCode=editor.getText().toString();String code=savedCode.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;", "top:0;right:0;bottom:0;left:0;inset:0;");contextReported=false;fontNotices=0;onFontNotice(0);WebViewSecurity.resetDiagnostics(stage);String prepared=ImportedContent.prepare(code,asset("motion-clock.js"),asset("fonts.css"),"window.__m2vToken="+generation+";",onlineResourcesAllowed);getPreferences(0).edit().putString("code",savedCode).apply();stage.loadDataWithBaseURL("https://motion.local/",prepared,"text/html","UTF-8",null);previewMonitor.removeCallbacksAndMessages(null);monitorPreview(generation);}
  private void monitorPreview(int token){
   if(isDestroyed()||stageFailed||token!=generation)return;
   if(working){previewMonitor.postDelayed(()->monitorPreview(token),RenderBudget.STALL_MS);return;}
@@ -53,10 +64,11 @@ public class MainActivity extends Activity {
    if(working){answered[0]=true;monitorPreview(token);return;}
    stopUnresponsivePreview();
   };
-  try{stage.evaluateJavascript(ImportedContent.CONTEXT_CHECK,value->{
+  try{stage.evaluateJavascript(ImportedContent.PREVIEW_CHECK,value->{
    if(answered[0]||stageFailed||token!=generation)return;
    answered[0]=true;previewMonitor.removeCallbacks(timeout);
-   if("true".equals(value)&&!contextReported){contextReported=true;onStageContextLost();}
+   if(("1".equals(value)||"3".equals(value))&&!contextReported){contextReported=true;onStageContextLost();}
+   if("2".equals(value)||"3".equals(value))reportFontNotice(StageAssets.FONT_BLOCKED);
    previewMonitor.postDelayed(()->monitorPreview(token),1500);
   });}catch(RuntimeException ignored){}
   previewMonitor.postDelayed(timeout,RenderBudget.STALL_MS);
@@ -93,6 +105,10 @@ public class MainActivity extends Activity {
  protected void showAbout(){
   new AlertDialog.Builder(this).setTitle("دربارهٔ Motion2Video Pro").setMessage("Android System WebView\n"+WebViewSecurity.provider()).setPositiveButton("بازگشت",null).show();
  }
+ private void reportFontNotice(int notice){
+  if((fontNotices|notice)!=fontNotices){fontNotices|=notice;onFontNotice(fontNotices);}
+ }
+ protected void onFontNotice(int flags){}
  protected void onStageContextLost(){onRenderError(ImportedContent.CONTEXT_ERROR);}
  protected <T>T ui(Callable<T> call)throws Exception{FutureTask<T> task=new FutureTask<>(call);runOnUiThread(task);return task.get(15,TimeUnit.SECONDS);}
  protected String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();runOnUiThread(()->{if(isDestroyed()||stageFailed){f.completeExceptionally(new IOException("صفحه بسته شد"));return;}stage.evaluateJavascript(script,f::complete);});return f.get(15,TimeUnit.SECONDS);}

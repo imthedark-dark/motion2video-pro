@@ -16,7 +16,8 @@ for file in java.glob('*.java'):
 gradle=(root/'app/build.gradle.kts').read_text()
 if re.search(r'firebase|crashlytics|sentry|analytics|opentelemetry',gradle,re.I):raise ValueError('Telemetry build dependency added')
 security=(java/'WebViewSecurity.java').read_text()
-assert 'view.setWebChromeClient(new PrivateWebChromeClient(debug(context)))' in security
+assert 'PrivateWebChromeClient client=new PrivateWebChromeClient(debug(context))' in security
+assert 'view.setWebChromeClient(client)' in security
 for name in ('MainActivity.java','StudioActivity.java','OffscreenStage.java'):
  text=(java/name).read_text();assert 'WebViewSecurity.configure(' in text
  assert 'setWebChromeClient(' not in text,'WebView privacy client overwritten'
