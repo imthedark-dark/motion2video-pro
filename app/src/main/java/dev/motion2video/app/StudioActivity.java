@@ -32,6 +32,7 @@ public final class StudioActivity extends MainActivity {
  private String presentedJob="";
  private RenderRequest pendingRender;
  private JSONObject advancedOptions=new JSONObject();
+ private JSONObject pendingQueueOptions;private boolean pendingQueueStart;
  private final RenderService.Listener renderListener=this::renderState;
 
  @Override public void onCreate(Bundle state){
@@ -107,6 +108,11 @@ public final class StudioActivity extends MainActivity {
   try{
    JSONObject m=new JSONObject(raw);String type=BridgeValidation.command(m);
    if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed);emitDownloads();renderState(state);return;}
+   if(type.equals("queueState")){emit("queueState","items",RenderQueue.snapshot(this));return;}
+   if(type.equals("cancelQueued")){RenderService.cancelQueued(this,m.getString("id"));emit("queueState","items",RenderQueue.snapshot(this));return;}
+   if(type.equals("resumeQueue")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");final boolean online=onlineResourcesAllowed;new Thread(()->{try{RenderQueue.resume(this,online);runOnUiThread(this::startQueueWithPermissions);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}},"queue-resume").start();return;}
+   if(type.equals("queueFiles")){if(importing||pendingRender!=null)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");pendingQueueOptions=new JSONObject(m.getJSONObject("options").toString()).put("onlineResources",onlineResourcesAllowed);Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("text/*").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(picker,4);return;}
+   if(type.equals("openQueueResult")){if(working||saving)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");openQueueResult(m.getString("id"));return;}
    if(type.equals("onlineResources")){if(working||saving)throw new IOException("هنگام رندر نمی‌توان دسترسی اینترنت را تغییر داد.");requestOnlineResources(m.getBoolean("enabled"));return;}
    if(type.equals("renderState")){renderState(RenderService.latest(this));return;}
    if(type.equals("downloads")){emitDownloads();return;}
@@ -123,10 +129,10 @@ public final class StudioActivity extends MainActivity {
     configure(m.getJSONObject("options"));editor.setText(html);
     if(type.equals("render"))export();else preview();return;
    }
-   if(type.equals("clearAudioAssets")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");AudioAssets.clear(this);emit("audioCleared");return;}
+   if(type.equals("clearAudioAssets")){if(RenderQueue.pending(this))throw new IOException("ابتدا کارهای صف را تمام یا لغو کن.");if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");AudioAssets.clear(this);emit("audioCleared");return;}
    if(type.equals("chooseAudio")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("audio/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,3);return;}
    if(type.equals("chooseFile")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,1);return;}
-  }catch(OutOfMemoryError memory){memoryError();}catch(Exception e){emit(working?"commandError":"error","message","درخواست معتبر نیست؛ نوع و تنظیمات ورودی را بررسی کن.");}
+  }catch(OutOfMemoryError memory){memoryError();}catch(Exception e){emit(working?"commandError":"error","message",PublicErrors.message(e));}
  }
  private void configure(JSONObject o)throws Exception{
   advancedOptions=new JSONObject();for(String key:new String[]{"rangeStart","rangeEnd","audio"})if(o.has(key))advancedOptions.put(key,o.get(key));
@@ -184,7 +190,7 @@ public final class StudioActivity extends MainActivity {
   if(request==RENDER_PERMISSIONS){
    if(PermissionPolicy.notifications(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)emit("permissionNotice","message","اعلان‌ها مجاز نیستند؛ رندر ادامه دارد. برای دیدن پیشرفت یا توقف، به برنامه برگرد.");
    if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)emit("permissionNotice","message","دسترسی دانلودها مجاز نیست؛ ویدیو در برنامه می‌ماند و بعداً می‌توانی دوباره ذخیره کنی.");
-   if(pendingRender!=null)beginRender();return;
+   if(pendingRender!=null)beginRender();else if(pendingQueueStart){pendingQueueStart=false;try{RenderService.startQueue(this);}catch(Exception e){emit("commandError","message",PublicErrors.message(e));}}return;
   }
   if(request==STORAGE_REQUEST){saving=false;if(grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)saveCurrent();else emit("downloadError","message","در اندروید ۸ و ۹ برای ذخیره در دانلودها، دسترسی حافظه لازم است. ویدیو هنوز برای ذخیرهٔ مجدد در دسترس است.");}
  }
@@ -199,16 +205,33 @@ public final class StudioActivity extends MainActivity {
    final RenderRequest candidate=RenderRequest.create(editor.getText().toString(),options);pendingRender=candidate;working=true;
    new Thread(()->{boolean videoSupported=false;try{CodecSupport.encoder(candidate.mime,candidate.width,candidate.height,candidate.fps,candidate.bitrate);videoSupported=true;if(candidate.audio!=null)AudioComposer.validate(this,candidate);runOnUiThread(()->{if(closed||pendingRender!=candidate)return;try{authorizeRender(candidate);}catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}});}
     catch(Throwable unsupported){org.json.JSONObject proposed=null;if(!videoSupported&&!(unsupported instanceof OutOfMemoryError))try{proposed=CodecSupport.suggestion(candidate);}catch(Throwable ignored){}final org.json.JSONObject next=proposed;
-     runOnUiThread(()->{if(closed||pendingRender!=candidate)return;pendingRender=null;working=false;emit("error","message",PublicErrors.message(unsupported));if(next!=null&&!isFinishing())new android.app.AlertDialog.Builder(this).setTitle("پیشنهاد سازگار با دستگاه").setMessage(next.optInt("width")+" × "+next.optInt("height")+" / "+next.optInt("fps")+" FPS / "+next.optString("mime")+"\nاین پیشنهاد خودکار رندر نمی‌شود؛ پس از اعمال دوباره تبدیل را بزن.").setPositiveButton("اعمال پیشنهاد",(d,w)->{try{configure(next);emit("suggestedOptions","options",next);}catch(Exception e){emit("error","message",PublicErrors.message(e));}}).setNegativeButton("لغو",null).show();});}
+     runOnUiThread(()->{if(closed||pendingRender!=candidate)return;pendingRender=null;working=false;emit("error","message",PublicErrors.message(unsupported));offerSuggestion(next);});}
    },"codec-capability").start();
   }catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}
  }
+ private void offerSuggestion(JSONObject options){if(options==null||closed||isFinishing()||working)return;new android.app.AlertDialog.Builder(this).setTitle("پیشنهاد سازگار با دستگاه").setMessage(options.optInt("width")+" × "+options.optInt("height")+" / "+options.optInt("fps")+" FPS / "+options.optString("mime")+"\nاین پیشنهاد خودکار رندر نمی‌شود؛ پس از اعمال دوباره تبدیل یا افزودن به صف را بزن.").setPositiveButton("اعمال پیشنهاد",(d,w)->{try{if(working||saving)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");configure(options);emit("suggestedOptions","options",options);}catch(Exception e){emit("commandError","message",PublicErrors.message(e));}}).setNegativeButton("لغو",null).show();}
  private void authorizeRender(RenderRequest candidate)throws Exception {
   getPreferences(0).edit().putString("code",candidate.html).apply();
    ArrayList<String> permissions=new ArrayList<>();
    if(PermissionPolicy.notifications(android.os.Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
    if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
    if(!permissions.isEmpty()){candidate.write(this);working=true;requestPermissions(permissions.toArray(new String[0]),RENDER_PERMISSIONS);}else beginRender();
+ }
+ private void startQueueWithPermissions(){
+  if(closed)return;try{ArrayList<String> needed=new ArrayList<>();if(PermissionPolicy.notifications(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)needed.add(android.Manifest.permission.POST_NOTIFICATIONS);if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)needed.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);if(!needed.isEmpty()){pendingQueueStart=true;requestPermissions(needed.toArray(new String[0]),RENDER_PERMISSIONS);}else RenderService.startQueue(this);}catch(Exception e){emit("commandError","message",PublicErrors.message(e));}
+ }
+ private void openQueueResult(String id)throws Exception{
+  JSONObject item=RenderQueue.item(this,id);if(!item.getString("phase").equals("complete"))throw new IOException(QueueLedger.ERROR);JSONObject o=item.getJSONObject("options");String mime=o.getString("mime"),ext=CodecSupport.webm(mime)?"webm":"mp4";File f=new File(getCacheDir(),"render-"+id+"."+ext);if(!f.isFile())throw new FileNotFoundException();result=f;resultMime="video/"+ext;resultExt=ext;exportPath="/exports/"+id+"."+ext;savedSource="";savedDownload=null;emit("result","url",ORIGIN+exportPath,"ext",ext,"size",f.length(),"options",o);
+ }
+ private void importQueue(Intent data,JSONObject options){
+  if(importing)return;importing=true;emit("queueImporting");new Thread(()->{JSONArray prepared=new JSONArray();boolean committed=false;try{
+   ArrayList<Uri> uris=new ArrayList<>();ClipData clip=data.getClipData();if(clip!=null){if(clip.getItemCount()>8)throw new IOException(QueueLedger.ERROR);for(int i=0;i<clip.getItemCount();i++)uris.add(clip.getItemAt(i).getUri());}else if(data.getData()!=null)uris.add(data.getData());if(uris.isEmpty())throw new IOException(QueueLedger.ERROR);
+   long staged=0;File[] existing=new File(getCacheDir(),"render-jobs").listFiles();if(existing!=null)for(File f:existing)staged+=f.length();if(staged>256L*1024*1024)throw new IOException(QueueLedger.ERROR);
+   long bytes=0;for(Uri uri:uris){String html=HtmlImport.read(getContentResolver(),uri);long count=html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;bytes+=count;if(bytes>60L*1024*1024)throw new IOException(QueueLedger.ERROR);if(new android.os.StatFs(getCacheDir().getAbsolutePath()).getAvailableBytes()<count*2+32L*1024*1024)throw new IOException("فضای خالی برای فایل‌های صف کافی نیست.");RenderRequest job=RenderRequest.create(html,options);if(prepared.length()==0){try{CodecSupport.encoder(job.mime,job.width,job.height,job.fps,job.bitrate);}catch(Exception unsupported){JSONObject proposed=CodecSupport.suggestion(job);runOnUiThread(()->offerSuggestion(proposed));throw unsupported;}if(job.audio!=null)AudioComposer.validate(this,job);}String name="موشن "+(prepared.length()+1);try(android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst()){String n=c.getString(0);if(n!=null&&n.length()<=240)name=n;}}
+    JSONObject entry=new JSONObject().put("id",job.id).put("name",name).put("bytes",count).put("total",job.frames).put("options",job.options());prepared.put(entry);job.write(this);
+   }
+   RenderQueue.enqueue(this,prepared);committed=true;runOnUiThread(()->{emit("queueState","items",RenderQueue.snapshot(this));startQueueWithPermissions();});
+  }catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{if(!committed)for(int i=0;i<prepared.length();i++)RenderQueue.cleanup(this,prepared.optJSONObject(i).optString("id"));importing=false;runOnUiThread(()->emit("queueIdle"));}},"queue-import").start();
  }
  private void beginRender(){
   RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}
@@ -243,6 +266,7 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onRenderError(String error){emit(cancelled?"cancelled":"error","message",error==null?"رندر انجام نشد.":error);}
  @Override protected void onVideoSaved(){emit("saved");}
  @Override protected void onActivityResult(int r,int code,Intent data){
+  if(r==4){JSONObject options=pendingQueueOptions;pendingQueueOptions=null;if(code==RESULT_OK&&data!=null&&options!=null)importQueue(data,options);return;}
   if(r==3){if(code==RESULT_OK&&data!=null&&data.getData()!=null&&!importing){importing=true;emit("audioImporting");new Thread(()->{try{JSONObject item=AudioAssets.importFile(this,data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("audioSelected","item",item);});}catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;runOnUiThread(()->emit("audioIdle"));}},"audio-import").start();}return;}
   if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("file","code",html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
   super.onActivityResult(r,code,data);

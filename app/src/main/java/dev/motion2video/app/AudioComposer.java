@@ -61,7 +61,7 @@ final class AudioComposer {
    v.setDataSource(video.getAbsolutePath());a.setDataSource(audio.getAbsolutePath());int vi=track(v,"video/"),ai=track(a,"audio/");v.selectTrack(vi);a.selectTrack(ai);muxer=new MediaMuxer(output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);int vo=muxer.addTrack(v.getTrackFormat(vi)),ao=muxer.addTrack(a.getTrackFormat(ai));muxer.start();started=true;
    ByteBuffer buffer=ByteBuffer.allocateDirect(8*1024*1024);MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();long lastA=-1;
    while(true){guard.check();long vt=v.getSampleTime(),at=a.getSampleTime();if(at>=durationUs)at=-1;if(vt<0&&at<0)break;boolean videoNext=vt>=0&&(at<0||vt<=at);MediaExtractor source=videoNext?v:a;long pts=videoNext?vt:at;buffer.clear();int n=source.readSampleData(buffer,0);if(n<0)throw new IOException(UNSUPPORTED);
-    if(!videoNext&&pts<=lastA)throw new IOException(UNSUPPORTED);if(!videoNext)lastA=pts;info.set(0,n,pts,source.getSampleFlags()&MediaCodec.BUFFER_FLAG_KEY_FRAME);muxer.writeSampleData(videoNext?vo:ao,buffer,info);source.advance();guard.progress();
+    if(!videoNext&&pts<=lastA)throw new IOException(UNSUPPORTED);if(!videoNext)lastA=pts;int flags=(source.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_SYNC)!=0?MediaCodec.BUFFER_FLAG_KEY_FRAME:0;info.set(0,n,pts,flags);muxer.writeSampleData(videoNext?vo:ao,buffer,info);source.advance();guard.progress();
    }
    muxer.stop();started=false;success=true;
   }finally{v.release();a.release();if(muxer!=null){if(started)try{muxer.stop();}catch(Exception ignored){}muxer.release();}if(!success)output.delete();}

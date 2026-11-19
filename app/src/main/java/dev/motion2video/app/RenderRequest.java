@@ -20,6 +20,7 @@ public final class RenderRequest {
   for(String key:new String[]{"rangeStart","rangeEnd"})if(o.has(key)&&!(o.get(key) instanceof Number))throw new IOException("تنظیمات عددی معتبر نیست.");
   rangeStart=o.optDouble("rangeStart",0);rangeEnd=o.optDouble("rangeEnd",duration);frames=RenderRange.frames(duration,fps,rangeStart,rangeEnd);outputDuration=frames/(double)fps;if(o.has("audio")&&!(o.get("audio") instanceof JSONObject))throw new IOException(AudioOptions.ERROR);audio=o.has("audio")?new AudioOptions(o.getJSONObject("audio"),outputDuration):null;ext=CodecSupport.webm(mime)?"webm":"mp4";
  }
+ public RenderRequest withOnlineResources(boolean allowed)throws Exception{return new RenderRequest(id,html,options().put("onlineResources",allowed));}
  public static RenderRequest create(String html,JSONObject o)throws Exception{return new RenderRequest(UUID.randomUUID().toString(),html,o);}
  public static File file(Context c,String id)throws IOException{if(id==null||!id.matches("[a-f0-9-]{36}"))throw new IOException("Invalid job ID");File dir=new File(c.getCacheDir(),"render-jobs");if(!dir.isDirectory()&&!dir.mkdirs())throw new IOException("Cannot create job directory");return new File(dir,id+".json");}
  public void write(Context c)throws Exception{JSONObject o=options();o.put("id",id);o.put("html",html);try(OutputStream out=new FileOutputStream(file(c,id))){out.write(o.toString().getBytes(StandardCharsets.UTF_8));}}

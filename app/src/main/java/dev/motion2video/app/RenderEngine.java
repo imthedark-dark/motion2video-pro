@@ -6,8 +6,9 @@ import android.content.Context;import android.graphics.Bitmap;import java.io.*;i
  */
 final class RenderEngine {
  interface Progress{void frame(int done,int total);}
- private final Context context;private final RenderRequest request;private volatile OffscreenStage stage;private volatile IOException failure;private RenderBudget budget;
+ private final Context context;private final RenderRequest request;private volatile OffscreenStage stage;private volatile IOException failure;private RenderBudget budget;private volatile boolean cleanupComplete;
  RenderEngine(Context c,RenderRequest r){context=c;request=r;}
+ boolean cleanupComplete(){return cleanupComplete;}
  void cancel(){OffscreenStage s=stage;if(s!=null)s.cancelPending();}
  private void active(BooleanSupplier cancelled)throws IOException{if(failure!=null)throw failure;if(cancelled.getAsBoolean())throw new IOException("رندر لغو شد.");}
  File render(BooleanSupplier cancelled,Progress progress)throws Exception{
@@ -44,6 +45,7 @@ final class RenderEngine {
    try{encoding.submit(()->{if(encoder[0]!=null){encoder[0].close();encoder[0]=null;}});}catch(RejectedExecutionException ignored){}
    encoding.shutdown();boolean stopped=false;try{stopped=encoding.awaitTermination(60,TimeUnit.SECONDS);}catch(InterruptedException e){Thread.currentThread().interrupt();}
    if(stopped)for(Bitmap b:buffers)if(b!=null&&!b.isRecycled()&&(s==null||s.canRecycle(b)))b.recycle();
+   cleanupComplete=stopped&&(s==null||s.teardownComplete());
    if(!success)output.delete();
   }
  }

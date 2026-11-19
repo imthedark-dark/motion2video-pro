@@ -1,0 +1,64 @@
+Phase 6 host verification — 2026-11-19 UTC
+Target: feature/phase-6; parent security/phase-5 815cb4f
+Stable final source: all seven feature implementations, retained exported=false override.
+No production signing keys, main merge/push or release publication.
+
+Commands completed with exit 0:
+python3 build.py
+python3 build.py --release  # unsigned / R8
+npm run test:ui
+npm run test:clock
+python3 tools/test_yuv.py
+python3 tools/test_platform.py
+python3 tools/test_input.py
+python3 tools/test_privacy.py
+python3 tools/test_features.py
+python3 tools/test_requests.py --android-jar <API35 android.jar> --json-jar <host JSON jar>
+python3 tools/test_supply_chain.py
+python3 tools/verify_dependencies.py
+python3 tools/verify_phase2.py
+python3 tools/verify_privacy.py --apks
+git diff --check
+./gradlew --no-daemon -Pm2vReleaseSigning=false :app:lintDebug :app:lintRelease
+python3 tests/build-instrumentation.py  # compile/debug-test-key only; NOT device execution
+npm audit --audit-level=moderate
+<actionlint 1.7.12>
+
+Selected actual build/test output:
+BUILD SUCCESSFUL in 18s
+PASS: generate checksums for 4 APK(s)
+BUILD SUCCESSFUL in 31s
+PASS: generate checksums for 4 APK(s)
+PASS: mobile/desktop layout, form actions, four motion frames, native transport and downloads workflow.
+PASS: CSP precedes scripts/markup, preserves doctype, and blocks frames/workers/forms.
+PASS: production Java CSP rejects offline network probes (zero TLS hits), frame/worker/navigation and WebRTC escape paths; explicit HTTPS opt-in can send synthetic content (privacy boundary).
+PASS: CSS seeking and duration with Web Animations API and old-WebView negative-delay fallback.
+PASS: 72 bit-identical plane/stride/offset cases, including shared UV buffers.
+PASS: storage/notification API boundaries, byte-identical copy and prompt cancellation.
+PASS: 23 import/encoding/boundary/memory/deadline checks
+PASS: 22 privacy error checks (paths, HTML, URL credentials, oversized/cyclic/throwing causes and useful fixed messages)
+PASS: desktop success/failure suppress diagnostics by default; explicit --debug exposes fixture diagnostics; encoding arguments unchanged
+PASS: capability ranking preserves codec/orientation, avoids upscale and prefers compatible AVC fallback
+PASS: estimate unknown/completion/rate/large-size/audio-overhead boundaries
+PASS: audio size/type/UUID policies, PCM trim, stereo interpolation, padding, gain/clamp/fades and bounded cancellation
+PASS: 246 production bridge/request schema and unchanged output-setting cases (host JSON runtime)
+PASS: production queue FIFO, failure continuation, cancellation, paused recovery, count/byte/UUID limits and bounded history
+PASS: 36 bundled asset hashes, 13 version/license records, font versions and embedded GSAP
+PASS: 17 actual checksum/asset corruption, inventory, symlink, traversal, duplicate and version guards
+PASS: 36 bundled asset hashes, 13 version/license records, font versions and embedded GSAP
+PASS: debug compiled manifest boundaries, FileProvider roots, network XML and canonical UI.
+PASS: release compiled manifest boundaries, FileProvider roots, network XML and canonical UI.
+PASS: R8 produced obfuscated app classes; release resources and manifest survived shrinking.
+PASS: source diagnostic sinks, error boundary, no owned telemetry client, all WebView console clients and privacy metadata
+PASS: debug compiled APK requests WebView metrics opt-out
+PASS: release compiled APK requests WebView metrics opt-out
+Audited 184 files; 0 issue(s).
+
+Debug lint: 0 errors, 23 warnings
+Release lint: 0 errors, 23 warnings
+npm audit: found 0 vulnerabilities
+actionlint: exit 0, no findings
+Instrumentation: compile/package/sign exit 0; existing debug test key only, NOT executed on devices.
+
+NOT verified: physical-device codec negotiation, A/V priming/lip sync/fade audibility, OEM picker/share and API26–35 queue lifecycle/quota behavior.
+Full OWASP scan remains blocked by previously documented NVD/CISA access; private GitHub vulnerability reporting still requires owner administration.

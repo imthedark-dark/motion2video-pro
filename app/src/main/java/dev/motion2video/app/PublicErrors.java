@@ -11,6 +11,11 @@ public final class PublicErrors {
  // Exact matches only. Adding a new user error requires reviewing this catalogue; never use prefixes.
  private static final Set<String> KNOWN=Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
   GENERIC,MEMORY,PERMISSION,FILE,TIMEOUT,SAVE_WARNING,
+  "پردازش قبلی کاملاً متوقف نشده است؛ برنامه را توقف اجباری و دوباره باز کن.",
+  "فضای خالی برای فایل‌های صف کافی نیست.",
+  "صف پر یا نامعتبر است؛ حداکثر ۸ کار و مجموع ۶۰ مگابایت HTML مجاز است.",
+  "رندر در حال توقف است؛ کمی صبر کن.",
+  "ابتدا کارهای صف را تمام یا لغو کن.",
   "فایل صوتی معتبر نیست؛ MP3، AAC، WAV یا M4A تا ۱۰۰ مگابایت و ۳۰ دقیقه انتخاب کن.","تنظیمات صدا معتبر نیست؛ برش، بلندی و محوشدن را بررسی کن.","پردازش این صدا روی دستگاه پشتیبانی نمی‌شود؛ WAV یا AAC دیگری امتحان کن.",
   "حافظهٔ صوت‌های موقت پر است؛ ابتدا آن‌ها را پاک کن.",
   "فضای خالی برای پردازش صدا کافی نیست.",

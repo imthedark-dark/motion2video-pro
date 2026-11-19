@@ -83,6 +83,7 @@ final class OffscreenStage implements AutoCloseable {
    else{Canvas canvas=new Canvas(c.bitmap);canvas.drawColor(Color.BLACK);web.draw(canvas);c.done.complete(null);if(pending==c)pending=null;}
   }catch(Throwable e){c.done.completeExceptionally(e);if(pending==c)pending=null;}
  }
+ boolean teardownComplete(){return released.isDone()&&copying.isEmpty();}
  boolean canRecycle(Bitmap bitmap){return !copying.contains(bitmap);}
  void cancelPending(){abort(new IOException("رندر لغو شد."),false);}
  void abort(IOException error,boolean terminate){

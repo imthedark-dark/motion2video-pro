@@ -93,7 +93,7 @@ In one desktop JVM test, converting thirty 720p frames took 152.7ms in the origi
 | Typography | Vazirmatn, Amiri, Noto Naskh Arabic, Scheherazade New, Anton, Inter |
 | Optional desktop path | FFmpeg conversion and audio mixing |
 
-Android export is currently **silent**. HEVC/AV1 and VP8/VP9 depend on device capabilities. ProRes/MOV/alpha export is not implemented in the APK. Selecting 1080p or 60fps does not guarantee that every device supports that combination.
+Android export defaults to **silent**; unreleased Phase 6 adds optional AAC audio for MP4 (see below). HEVC/AV1 and VP8/VP9 depend on device capabilities. ProRes/MOV/alpha export is not implemented in the APK. Selecting 1080p or 60fps does not guarantee that every device supports that combination.
 
 <a id="build"></a>
 ## Build from source
@@ -192,7 +192,9 @@ Native rendering has no project-owned upload service, analytics or crash-reporti
 
 Explicit online resources can send content, standalone HTML loads CDNs, and OS/provider behavior is separate. Read the [Persian/English privacy policy](PRIVACY.md) and [evidence/limits](docs/PHASE5_PRIVACY.md). These source/host checks do not establish zero device traffic; native logging/network acceptance is still pending. No new public APK was published.
 
-Phase6 feature work is isolated on feature/phase-6; capability proposals are shown before rendering and applied only by the user. Accepted phases remain frozen on security/phase-5. See [feature audit](docs/PHASE6_FEATURES.md).
+### Phase 6 features (unreleased)
+
+Existing Release APKs do not include these changes. Phase6 feature work is isolated on feature/phase-6; capability proposals are shown before rendering and applied only by the user. Accepted phases remain frozen on security/phase-5. See [feature audit](docs/PHASE6_FEATURES.md).
 
 Registered exports now have a Share action using the narrow read-only FileProvider and Android chooser. If a file was moved/deleted or direct access is unavailable, re-export or use the Downloads manager.
 
@@ -203,3 +205,7 @@ Optional source start/end ranges are validated against the configured/detected a
 The studio estimates encoded size before rendering and remaining frame-render time from measured progress. Previous same-profile render speed is retained locally for a rough preflight estimate. Estimates are not guarantees and exclude unpredictable loading/audio/save delays.
 
 Optional Android audio accepts MP3/AAC/WAV/M4A (≤100 MiB, ≤30 min, mono/stereo, device decoder dependent). Trim, volume and fades feed streaming 48kHz stereo PCM16 and AAC-LC 192kbps; a separate MP4 remux preserves encoded video samples/PTS. Short audio pads with silence. WebM audio and >2 channels/non-PCM16 decoded formats fail clearly; silent output stays the default. Temporary audio assets (≤8, ≤160 MiB total) can be cleared in-app when idle. Native A/V acceptance remains pending.
+
+Batch render queue: choose up to 8 HTML files (≤60 MiB source total) with an immutable snapshot of current settings for each job. The existing foreground service runs one at a time; ordinary job failure/cancel continues the rest. Pending jobs can be cancelled individually. Process death/Android quota pauses waiting jobs until Resume; prior-session online permission is never restored automatically. Queue history is capped at 24, and old private previews may be evicted (approximately 1 GiB queue cache target); saved Downloads remain independent.
+
+Queue retention detail: the ~1GiB private-preview target evicts only outputs already saved to public Downloads. Unsaved outputs are retained while in the bounded history (up to 24); they remain temporary Android cache and can still be lost to cache clearing/eviction. Queue jobs preflight estimated disk space; missing storage permission does not silently mark a video saved.

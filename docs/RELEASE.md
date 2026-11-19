@@ -101,3 +101,7 @@ The legacy manifest lists older APKs too; remote verification selects only the r
 ## Action and dependency updates
 
 Dependabot covers npm, Gradle (app and isolated scanner) and GitHub Actions weekly. Every external action is pinned to a full upstream commit SHA; comments identify its major version. Workflow permissions default to read-only; only the guarded explicit publication job has contents:write/actions:read. Checkout credentials are not persisted. Review Dependabot PRs, upstream provenance/licensing and scan/regression results before merging. Refresh reviewed asset metadata/hashes explicitly when bundled files change; never just regenerate hashes to silence an integrity failure.
+
+## Phase 6 release gate
+
+Feature builds remain unreleased debug/unsigned artifacts. Before owner-controlled signing/publication, complete the physical-device capability, audio A/V/priming, queue lifecycle/quota and FileProvider share checks in VALIDATION.md, including a minified release UI pass. Host DSP/FIFO and compile-only instrumentation are not substitutes. Preserve the existing signer and user-owned production keystore; this work neither creates production keys nor changes published Release assets.

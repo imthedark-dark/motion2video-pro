@@ -188,3 +188,23 @@ Native/physical acceptance and the previously recorded Phase4 advisory-feed/priv
 ## Phase 6 baseline (before feature implementation)
 
 Audited815cb4f: existing native capability rejection but no nearest-option suggestion; single-track silent muxing; no source range; elapsed/frame progress without ETA/size; one active job plus a completion-race Intent rather than a real queue; ACTION_VIEW only; four fixed sizes/sample/draft but no Square or project-settings store. Detailed evidence/scope and pre-feature verification are in PHASE6_FEATURES.md. Phase branches are stacked; refreshed main has no unique commits relative to phase5, and merge-tree simulation exits0. No merge/main push/key generation/publication has occurred. Latest user confirmation authorizes Phase6 implementation on its own branch, with one commit per feature and a stop before Phase7.
+
+## Phase 6 implementation audit (unreleased)
+
+The initial Phase 6 inventory is in [PHASE6_FEATURES.md](PHASE6_FEATURES.md), recorded before feature changes. Each required feature has a separate commit on feature/phase-6; accepted security branches and main are unchanged.
+
+| Finding | Implemented change | Evidence boundary |
+| --- | --- | --- |
+| Encoder rejection had no ranked proposal | Native worker preflight, positive result cache, explicit nearest-profile Apply dialog | Production ranking and schema tests; actual codec/device negotiation pending |
+| Native video had one silent track | Optional private audio import, streaming trim/resample/gain/fades, AAC and MP4 remux | Production DSP/policy tests; native A/V fixture compiles, device execution pending |
+| Capture always began at source zero | Optional validated source range; output PTS still zero-based | Range/default-frame/schema checks and clock/YUV regressions |
+| Progress had no preflight size/ETA | Labeled estimates from bitrate/frame count and locally measured progress | Production numerical tests and UI labels; no benchmark claim |
+| Intent completion slot was not a queue | Bounded private FIFO ledger, immutable staged requests and existing sequential service | Production FIFO/failure/cancel/recovery/limit tests; native lifecycle fixture compiles only |
+| No system share action | Closed registered-export lookup and narrow read-only FileProvider chooser | UI transport and content-only schema tests; OEM receiving-app behavior pending |
+| No Square or named project settings | Explicit size presets and bounded local settings with strict load validation | All size/schema cases and UI save/load/delete/exclusion tests |
+
+No YUV or Mp4Encoder source changes. Default silent/full-range 1280×720, 60fps and 16Mbps remain unchanged. Range and Square affect output only when selected. Audio postprocessing never runs for a silent request. Queue work pauses when OS quotas/process interruption or incomplete native teardown prevent safe continuation; it does not launch overlapping encoders or evade foreground-service limits.
+
+Additional lint review found two inherited raw orientation constants and one new extractor/codec flag annotation issue, now fixed with equivalent named constants and explicit flag mapping. MissingClass for ProfileInstallReceiver was not evidence that the class was absent at runtime: manifest-merger and R8 show existing profileinstaller:1.3.0 via lifecycle-runtime:2.6.2. The compiled manifest guard rejected an attempted removal of the Phase 2 exported=false override; that override is restored unchanged. Explicitly declare the same existing implementation version to align compile/runtime visibility for lint. No lint baseline or suppression was introduced; no new runtime SDK was added. See final host evidence for the actual lint result; nonfatal warnings are not physical acceptance.
+
+Optional GIF/WebP/PNG sequence output is deliberately deferred. Production keys/releases, Phase 7 and main integration remain owner-controlled. Full OWASP feed access, private-reporting administration and physical-device acceptance remain unresolved as previously documented. See [MERGE_PLAN.md](MERGE_PLAN.md) and [VALIDATION.md](VALIDATION.md).
