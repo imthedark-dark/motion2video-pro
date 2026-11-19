@@ -8,12 +8,12 @@
 
 **کدت را به حرکت تبدیل کن؛ حرکتت را به ویدیو.**
 
-<img src="docs/assets/badge-version.svg" height="28" alt="Version 1.4.0" />
+<img src="docs/assets/badge-version.svg" height="28" alt="Version 1.4.1" />
 <img src="docs/assets/badge-android.svg" height="28" alt="Android 8 and later" />
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[دریافت APK اندروید](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.0/downloads/Motion2Video-1.4.0-Dark.apk) · [همهٔ فایل‌های انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.0)
+[دریافت APK اندروید](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.1/downloads/Motion2Video-1.4.1-Dark.apk) · [همهٔ فایل‌های انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
 
 [معرفی](#overview) · [شروع سریع](#quick-start) · [دانلودها](#downloads) · [ساخت از سورس](#build) · [وضعیت آزمون‌ها](#validation)
 
@@ -52,7 +52,7 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 2. **ببین و تنظیم کن:** پیش‌نمایش، مدت، اندازه، نرخ فریم و کدک را بررسی کن.
 3. **رندر بگیر:** کار را شروع کن و در صورت نیاز به برنامهٔ دیگری برو. پیشرفت در اعلان و نتیجه و مسیر فایل پس از بازگشت به برنامه در دسترس‌اند.
 
-> حداقل Android 8 لازم است. فایل APK آماده و چک‌سام آن در پوشهٔ [`downloads`](downloads) هم موجود است. APK آزمایشیِ امضاشده را از [صفحهٔ انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.0) دریافت کن یا از سورس بساز.
+> حداقل Android 8 لازم است. فایل APK آماده و چک‌سام آن در پوشهٔ [`downloads`](downloads) هم موجود است. APK آزمایشیِ امضاشده را از [صفحهٔ انتشار](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1) دریافت کن یا از سورس بساز.
 
 <a id="downloads"></a>
 ## خروجی‌هایت، یک‌جا
@@ -159,6 +159,14 @@ docs/      Build guide & original README graphics
 ```
 
 </div>
+
+## مجوز، شواهد و برنامهٔ توسعه
+
+کد و مستندات اصلی پروژه با [مجوز MIT](LICENSE) منتشر می‌شوند. GSAP مجوز اختصاصی خود را حفظ می‌کند؛ کل وابستگی‌های بسته را نباید MIT/OSI معرفی کرد. [مرز مجوزها](docs/LICENSING.md) و [اعلان‌های کتابخانه‌ها](THIRD_PARTY_NOTICES.md) را ببین.
+
+[مشارکت](CONTRIBUTING.md) · [آزمون‌های قابل بازتولید و وضعیت دستگاه‌ها](docs/VALIDATION.md) · [آمار عمومی واقعی](docs/METRICS.md) · [هدف و برنامهٔ توسعه](docs/IMPACT_AND_ROADMAP.md) · [وضعیت چک‌لیست](docs/READINESS.md)
+
+نسخهٔ ۱.۴.۱ متن مجوزها را داخل APK بسته‌بندی می‌کند و مستندات را تکمیل می‌کند؛ رفتار رندر همان نسخهٔ ۱.۴ است.
 
 ## حریم خصوصی و اعتبارها
 

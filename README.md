@@ -8,12 +8,12 @@
 
 **Turn code into motion. Turn motion into video.**
 
-<img src="docs/assets/badge-version.svg" height="28" alt="Version 1.4.0" />
+<img src="docs/assets/badge-version.svg" height="28" alt="Version 1.4.1" />
 <img src="docs/assets/badge-android.svg" height="28" alt="Android 8 and later" />
 <img src="docs/assets/badge-output.svg" height="28" alt="H.264 MP4 output" />
 <img src="docs/assets/badge-author.svg" height="28" alt="Created by Dark" />
 
-[Download Android APK](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.0/downloads/Motion2Video-1.4.0-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.0)
+[Download Android APK](https://raw.githubusercontent.com/imthedark-dark/motion2video-pro/v1.4.1/downloads/Motion2Video-1.4.1-Dark.apk) · [Release files](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1)
 
 [Overview](#overview) · [Quick start](#quick-start) · [Downloads](#downloads) · [Build](#build) · [Validation](#validation)
 
@@ -48,7 +48,7 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 2. **Preview and configure:** check the motion, duration, size, frame rate, and codec.
 3. **Render:** start the job, then switch apps if needed. Check its notification or return to the app for the result and saved path.
 
-> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.0), or build it from source.
+> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1), or build it from source.
 
 <a id="downloads"></a>
 ## Your exports, together
@@ -139,6 +139,14 @@ tests/     UI, animation clock & Android test sources
 tools/     Source audit & dependency update checker
 docs/      Build guide & original README graphics
 ```
+
+## License, evidence and development
+
+Original project work is [MIT licensed](LICENSE). GSAP retains a custom license; the complete dependency stack is not entirely MIT/OSI. See [license scope](docs/LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+
+[Contributing](CONTRIBUTING.md) · [Reproducible validation and device matrix](docs/VALIDATION.md) · [Public metrics](docs/METRICS.md) · [Purpose and development plan](docs/IMPACT_AND_ROADMAP.md) · [Readiness checklist](docs/READINESS.md)
+
+Version 1.4.1 adds license packaging and documentation; rendering behavior is unchanged from 1.4.0.
 
 ## Privacy and credits
 

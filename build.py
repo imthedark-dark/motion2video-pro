@@ -26,7 +26,7 @@ manifest.getroot().set('package','dev.motion2video.app')
 manifest.write(B/'AndroidManifest.xml',encoding='utf-8',xml_declaration=True)
 run(TOOLS/'aapt2','link','-I',ANDROID,'--manifest',B/'AndroidManifest.xml',
     '--java',B/'gen','--min-sdk-version','26','--target-sdk-version','35',
-    '--version-code','6','--version-name','1.4.0','-A',P/'app/src/main/assets','-o',B/'base.apk',B/'resources.zip')
+    '--version-code','7','--version-name','1.4.1','-A',P/'app/src/main/assets','-o',B/'base.apk',B/'resources.zip')
 sources=list((P/'app/src/main/java').rglob('*.java'))+list((B/'gen').rglob('*.java'))
 run('java','-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8','-source','17','-target','17','-classpath',ANDROID,'-d',B/'classes',*sources)
 run(TOOLS/'d8','--lib',ANDROID,'--min-api','26','--output',B/'dex',*list((B/'classes').rglob('*.class')))
@@ -38,7 +38,7 @@ if not key.exists():
     run('java','sun.security.tools.keytool.Main','-genkeypair','-keystore',key,'-storepass','android',
         '-keypass','android','-alias','androiddebugkey','-keyalg','RSA','-keysize','2048',
         '-validity','10000','-dname','CN=Dark Motion2Video Debug,O=Local Development,C=US')
-apk=DIST/'Motion2Video-1.4.0-Dark.apk'
+apk=DIST/'Motion2Video-1.4.1-Dark.apk'
 run(TOOLS/'apksigner','sign','--ks',key,'--ks-pass','pass:android','--key-pass','pass:android','--out',apk,B/'aligned.apk')
 run(TOOLS/'apksigner','verify','--verbose',apk)
 run(TOOLS/'zipalign','-c','4',apk)

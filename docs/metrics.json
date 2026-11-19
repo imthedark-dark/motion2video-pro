@@ -1,0 +1,17 @@
+{
+  "repository": "imthedark-dark/motion2video-pro",
+  "collected_at_utc": "2026-11-19T02:05:47.364458+00:00",
+  "stars": 0,
+  "forks": 0,
+  "subscribers": 0,
+  "release_assets": [],
+  "release_asset_downloads": 0,
+  "direct_raw_downloads": null,
+  "active_users": null,
+  "private_traffic": "Not requested or published.",
+  "notes": [
+    "Public API snapshot; counts do not establish unique users or successful renders.",
+    "GitHub does not expose raw.githubusercontent.com download counts here; direct APK downloads are unknown.",
+    "The app has no usage telemetry; active users and real-world adoption are unknown."
+  ]
+}
