@@ -1,5 +1,5 @@
-# Signed APK
+# APK distribution
 
-This directory contains the distributable APK only. No private signing key is included. Verify its SHA-256 digest with `SHA256SUMS.txt`.
+APKs are distributed through [GitHub Releases](https://github.com/imthedark-dark/motion2video-pro/releases) with `SHA256SUMS.txt`. Binary APKs are no longer committed on this branch. Historical tags/history remain unchanged; existing Release assets are not replaced.
 
-The APK retains the development signing key used for earlier app builds. Independently built CI debug artifacts use a different local key. See the main README for validation scope and current limitations.
+Published v1.4.1 is the earlier development-signed build and does not contain the Phase 1–4 hardening. Contributor/QA artifacts are not production releases. See [release signing and verification](../docs/RELEASE.md).

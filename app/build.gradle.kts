@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins { id("com.android.application") }
 android {
     namespace = "dev.motion2video.app"
@@ -16,13 +18,31 @@ android {
             require(it.isFile) { "M2V_DEBUG_KEYSTORE must point to an existing development keystore" }
         }
     }
+    val signedRelease = providers.gradleProperty("m2vReleaseSigning").orNull == "true"
+    if (signedRelease) {
+        val local = Properties()
+        val config = rootProject.file("release-signing.properties")
+        if (config.isFile) config.inputStream().use { local.load(it) }
+        fun secret(env: String, key: String): String = providers.environmentVariable(env).orNull
+            ?: local.getProperty(key) ?: error("Missing release signing setting: $env / $key")
+        signingConfigs.create("production") {
+            val keyFile = rootProject.file(secret("M2V_RELEASE_KEYSTORE", "storeFile"))
+            require(keyFile.isFile) { "Release keystore is not a readable file" }
+            storeFile = keyFile
+            storePassword = secret("M2V_RELEASE_STORE_PASSWORD", "storePassword")
+            keyAlias = secret("M2V_RELEASE_KEY_ALIAS", "keyAlias")
+            keyPassword = secret("M2V_RELEASE_KEY_PASSWORD", "keyPassword")
+            enableV1Signing = true
+            enableV2Signing = true
+        }
+    }
     buildTypes {
         getByName("debug") { isDebuggable = true }
         getByName("release") {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = null // Production signing is a separate Phase 4 change.
+            signingConfig = if (signedRelease) signingConfigs.getByName("production") else null
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -37,3 +57,10 @@ val syncStudio by tasks.registering(Copy::class) {
     rename { "studio.html" }
 }
 tasks.named("preBuild") { dependsOn(syncStudio) }
+
+// Copy the actual release runtime graph for the isolated OWASP scanner. No app code runs.
+tasks.register<Sync>("copySecurityDependencies") {
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    from(configurations.named("releaseRuntimeClasspath"))
+    into(rootProject.layout.buildDirectory.dir("security-dependencies"))
+}

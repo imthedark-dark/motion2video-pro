@@ -40,3 +40,5 @@ Preserve requested frame count, timestamps, dimensions, bitrate and color math. 
 ## راهنمای کوتاه فارسی
 
 برای گزارش اشکال، نسخهٔ اندروید و WebView، مدل گوشی، تنظیمات خروجی و یک نمونهٔ کوچک و قابل انتشار بفرست. اطلاعات خصوصی و کلیدها را وارد مخزن نکن. تغییرات کد اصلی با مجوز MIT پذیرفته می‌شوند؛ مجوز کتابخانه‌ها باید حفظ شود. آزمون انجام‌نشده را موفق ثبت نکن.
+
+Phase4: run `python3 tools/verify_dependencies.py` and `python3 tools/test_supply_chain.py` when bundled metadata or release tooling changes. `DEPENDENCIES.lock.json` schema2 contains versions, license paths, SHA-256 and sizes; update it only after reviewing actual changed upstream bytes. Never commit APKs, keys or `release-signing.properties`. Follow [RELEASE.md](docs/RELEASE.md); a green host build is not native acceptance or permission to publish a QA key.

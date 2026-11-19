@@ -1,21 +1,40 @@
-# Sensitive files
+# Security policy
 
-Signing keys, tokens, environment files, local SDK configuration, private download URLs and user runtime data must stay outside Git. `build/`, `dist/`, local settings and key extensions are ignored. The default debug key password is a standard development value, not a production credential.
+## Supported versions
 
-Before publishing, run `python3 tools/audit_source.py`. Never commit a release signing key; APK signing certificates are public metadata and do not contain its private key.
+| Version | Status |
+| --- | --- |
+| Latest security-review source (`security/phase-4`, incorporating Phases 1–3) | Reports accepted; host/build checks recorded, native acceptance pending |
+| Published v1.4.1 | Legacy development-signed release; investigate reports, but security fixes currently exist only in review source |
+| v1.4.0 and older | Unsupported; do not assume they contain the hardening in current source |
 
-## Phase 1 source boundary
+No hardened production APK has been published. Published v1.4.1 does **not** contain Phases 1–4. Native Phase 3 acceptance and physical-device checks remain outstanding. Update this table when a tested release ships.
 
-The `security/phase-1` review adds offline imported resources by default, explicit Persian online consent, early CSP, separate trusted/untrusted WebViews, strict native MessagePort schemas and renderer-loss cleanup. No `addJavascriptInterface` is exposed. Debug access follows the APK debuggable flag. See [verified findings](docs/AUDIT_REPORT.md), [decisions](docs/DECISIONS.md) and [tests/remaining risks](docs/PHASE1_SECURITY.md). Published v1.4.1 does not yet contain these source changes.
+## Report a vulnerability privately
 
-Imported JavaScript is still executable and may consume CPU/memory. CSP is defense in depth, not an OS security guarantee. Online opt-in allows external requests and possible disclosure of user content; Safe Browsing/platform services can have separate network behavior. Phase 1 native installation timed out; subsequent Phase 2 emulator checks exercised native interception and real renderer loss. Physical-device acceptance remains unverified. Signing/supply-chain and the full vulnerability-reporting policy rewrite remain Phase 4.
+After the owner enables reporting, use [GitHub private vulnerability reporting](https://github.com/imthedark-dark/motion2video-pro/security/advisories/new): open the repository's **Security → Advisories → Report a vulnerability**. Include affected commit/APK version, Android/WebView versions, reproducible steps, impact and a minimal synthetic HTML fixture. Remove personal data, signing material and tokens. Do not publish exploit details or user HTML in public issues, discussions or pull requests.
 
-## Phase 2 source boundary
+**Setup status checked 2026-11-19:** private vulnerability reporting is currently disabled. Enabling it through the connected integration returned HTTP 403. A repository owner must enable **Settings → Code security → Private vulnerability reporting** before external reporters can use this route. There is no verified alternative private email address in this repository; do not send sensitive details publicly while the private route is unavailable. Maintainers can use draft GitHub Security Advisories for private triage and coordinated disclosure.
 
-The `security/phase-2` branch preserves Phase 1 isolation and adds a non-exported, read-only AndroidX FileProvider with only the Motion2Video Downloads root. Registered legacy content URIs remain compatible; MediaStore is retained for Android 10+. Only the launcher is exported, including after library manifest merging. Storage is bounded to API26–28, notifications to API33+, and denied permissions do not abort encoding. Backup remains disabled and explicit network-security XML forbids cleartext and trusts system CAs only.
+## Response expectations
 
-OS foreground-service deadlines cancel work, release the wake lock and stop the service without waiting on the main thread. Workers retain their request and cannot publish after their service stops. A non-debuggable R8/resource-shrunk release and native lifecycle/file checks passed on an Android 11 emulator; no physical-phone or Android 15 real quota acceptance is claimed. Full production signing/reporting-policy changes remain Phase 4; published v1.4.1 has not been replaced. [Details and limitations](docs/PHASE2_ANDROID.md).
+This is a volunteer-maintained project, not a guaranteed response service. Target acknowledgement: seven days; initial assessment: fourteen days; status update at least every thirty days while a report is active. Complex platform/dependency issues can take longer. Coordinate public disclosure after a fix or an agreed timeline; never request production keys, real private animations or credentials to reproduce a bug.
 
-## Phase 3 resource protection
+## Threat model and boundaries
 
-Imports require HTML/HTM extension, an accepted provider MIME type, strict UTF-8, and at most 20 MiB. Pasted HTML and native requests have the same payload limit; supported settings are strictly checked. The service enforces readiness/frame waits, a two-hour monotonic render deadline, heap preflight/periodic limits and system low-memory cancellation. Partial outputs are removed and pending JavaScript waits can be cancelled. See [exact limits and caveats](docs/PHASE3_INPUT.md). These guards do not impose an OS memory quota on WebView/GPU or preempt blocked platform code. Use trusted animations; production signing/dependency hardening remains Phase 4 work.
+Imported HTML/CSS/SVG/JavaScript is active, untrusted code. The trusted Persian studio and imported content use separate WebViews. Imported code receives no `addJavascriptInterface` bridge. Native messages use a closed schema; filesystem opening is restricted to registered `content://` downloads. Imported resources are offline by default; explicit native Persian consent enables online HTTPS resources. Local packaged aliases, early CSP, restricted WebView settings and disabled cleartext are defense in depth.
+
+Imports have type/size/UTF-8 limits; render requests restrict dimensions, duration, FPS, bitrate and codec. Watchdogs check readiness, frames, Java heap and low system memory; preview responsiveness and renderer-loss handlers attempt safe teardown. Download access is narrow and read-only; non-launcher components are unexported. Release signing is opt-in, separate from debug, with secrets outside Git. See [audit evidence](docs/AUDIT_REPORT.md), [decisions](docs/DECISIONS.md), [input limits](docs/PHASE3_INPUT.md) and [release process](docs/RELEASE.md).
+
+## Known limitations
+
+- Arbitrary JavaScript can consume CPU/memory. Java heap checks are not a renderer/GPU/OS memory quota; process death and blocked platform APIs can defeat timely cleanup. API26–28 cannot use the newer renderer-termination API.
+- Native infinite-script/cancel/preview, memory-pressure and final minified-release runtime acceptance remain unverified in Phase 3 because the emulator's system services failed. No physical-phone acceptance is claimed.
+- Enabling online resources lets imported code contact external servers and potentially disclose content. Safe Browsing and OS services may have their own network behavior. A complete privacy/logging audit is Phase 5 work.
+- MediaCodec/WebView/OS vulnerabilities and codec availability depend on the device and vendor updates. Codec support is not universal.
+- Hashes prove byte consistency against a reviewed manifest, not author identity or absence of bugs. Validate the APK signer separately through a trusted fingerprint. Dependency scanners can miss vulnerabilities or report false positives; unavailable advisory feeds must not be reported as clean scans.
+- Original code is MIT; GSAP is custom-licensed. The whole bundled stack is not wholly OSI-licensed. See [license review](docs/LICENSING.md).
+
+## Sensitive material
+
+Never commit signing keys, passwords, tokens, private URLs, local signing properties, logs or user runtime data. `build/debug.jks`, release keys and `release-signing.properties` are ignored. The standard debug password is a public development default, not a production credential. Run `python3 tools/audit_source.py` before committing; its checks do not replace human review. Build/verification CI has read-only permissions and pinned actions; only the explicit draft-publication job has contents:write/actions:read. No CI job has a production signing key. Do not publish contributor/throwaway QA APKs as production releases.

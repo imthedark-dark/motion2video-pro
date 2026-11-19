@@ -48,7 +48,7 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 2. **Preview and configure:** check the motion, duration, size, frame rate, and codec.
 3. **Render:** start the job, then switch apps if needed. Check its notification or return to the app for the result and saved path.
 
-> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1), or build it from source.
+> Android 8 or later is required. APKs and SHA-256 manifests are distributed through GitHub Releases; binaries are no longer committed on this branch. Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1), or build it from source.
 
 <a id="downloads"></a>
 ## Your exports, together
@@ -179,3 +179,9 @@ This README takes visual inspiration from **Wow Profile**, featured in the [GitS
 HTML imports now allow up to 20 MiB with filename/MIME checks and strict UTF-8 decoding. Render settings are validated at each boundary. Memory preflight, a periodic heap/system-memory watchdog, two-hour render deadline and cancellable script waits stop oversized or stalled jobs without changing frame timing or quality. See [limits and reproducible checks](docs/PHASE3_INPUT.md). Renderer/GPU memory and blocked platform calls cannot be fully bounded by the app. This review branch does not replace published APKs.
 
 Phase 3 builds and host checks pass. Native acceptance is pending: the test emulator's system process/ActivityManager failed before instrumentation startup; physical phones were not tested.
+
+### Phase 4 release and supply-chain review
+
+Release signing is explicit (`python3 build.py --release --sign`) and reads environment settings or ignored local properties; debug and unsigned contributor builds remain available. APK versioned filenames come from Gradle output metadata. APK binaries are removed from this branch; existing tags/Release assets stay unchanged. Actions are pinned to full SHAs with read-only permissions by default (only an explicit guarded publication job can write Releases), Dependabot covers npm/Gradle/Actions, CI audits npm and runs isolated OWASP Dependency-Check, and schema-2 bundled version/hash/license checks reject drift. See [release process](docs/RELEASE.md), [security reporting status](SECURITY.md) and [license concerns](docs/LICENSING.md). No production release or completed native acceptance is implied.
+
+Remaining setup: private vulnerability reporting is still disabled after GitHub403; an owner must enable it. The full OWASP scan is blocked by NVD/CISA feed access, so no clean dependency-scan result is claimed.

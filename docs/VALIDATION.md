@@ -87,3 +87,13 @@ Open an issue with model, Android/API version, WebView version, app tag/SHA-256,
 Debug and R8/resource-shrunk unsigned release builds passed. UI/security probes, clock, all 72 byte-identical YUV cases and platform/copy regressions passed. Production import/memory/deadline policies passed 23 host cases; bridge/request sources passed 159 host schema/output-setting cases using the external JVM JSON test runtime. Compiled APK component/resource/R8 checks and asset hashes also passed.
 
 Phase 3 instrumentation compiled and installed but could not execute reliably: the API30 emulator's Android system process suffered network-stack crashes and ActivityManager remained unavailable at instrumentation startup. No new native or physical-device PASS is claimed. In particular, malicious-script termination/cancellation, preview timeout teardown, memory-pressure cancellation, large-import Activity recreation and the final minified APK's actual export remain acceptance gaps. See [Phase 3 reproduction and caveats](PHASE3_INPUT.md).
+
+## Phase 4 (2026-11-19)
+
+Debug and unsigned minified builds passed. Explicit signing without credentials fails; environment and ignored-local-properties signing both built successfully using a newly generated seven-day QA key outside Git. Apksigner verified the QA signature; all non-META-INF entries matched the restored unsigned release. Private properties and the QA distributable were removed from the checkout. No production identity or public APK was changed.
+
+UI/clock/security probes, all72 YUV byte-identical cases, platform, 23 input/budget and159 request-schema host checks passed. Asset verification covers36 unchanged files/13 component records;17 negative supply-chain guards passed. Npm audit returned zero known vulnerabilities. Workflow YAML/SHA/permission checks and actionlint1.7.12 passed. Existing v1.4.1 Release download checksum/ZIP checks passed. Native runtime scan inputs contain20 resolved artifacts.
+
+OWASP's full analysis remains blocked by NVD missing/anonymous-key access and CISA403 feed responses; this is not a clean vulnerability result. Private vulnerability reporting remains disabled after integration403. No new native/physical test PASS is claimed; Phase3 gaps carry forward. See [release process and gates](RELEASE.md).
+
+Publication guard verification passed with a throwaway QA candidate; wrong signer/tag, debuggable and unsigned APK cases were rejected. This only tests the local verifier. Guarded GitHub draft publishing was not invoked and remains gated on a green tagged-source audit and real native acceptance; it does not itself provide reproducible-build provenance.

@@ -121,3 +121,37 @@ Verified on commit `8f65384`: MainActivity and StudioActivity read imports with 
 | Asset hashes / source audit | PASS: all locked hashes match; no credential findings |
 
 See [Phase 3 limits](PHASE3_INPUT.md). These checks do not establish a total renderer/GPU memory quota, physical-device behavior or timely interruption of blocked platform calls. No production-signed APK was published and no Phase 4 changes were started.
+
+## Phase 4 baseline (before implementation)
+
+Verified at `eb534c0`: three signed APK binaries and SHA256SUMS are tracked in downloads/; verify_release.py and the release-assets workflow depend on those tracked bytes and raw tagged URLs. build.py delegates to Gradle and emits an unsigned minified release; no production signing inputs exist. Debug keystores are ignored, but downloads/*.apk is explicitly unignored. Both workflows use floating action tags; build permissions are read-only while release publishing grants contents:write workflow-wide. No Dependabot configuration, npm audit or OWASP dependency-check CI step exists. DEPENDENCIES.lock.json is a flat asset-to-SHA256 map without version/provenance metadata; no reusable hash verifier enforces coverage. GSAP custom-license terms, MIT library notices and OFL font notices already exist; current SECURITY.md documents phase boundaries but lacks a supported-version/reporting/response policy. Font versions were inspected from actual font name tables, not inferred from filenames. Phase 3 native acceptance remains blocked and must not be represented as completed by release automation.
+
+### Phase 4 implementation and verification
+
+- Removed the three tracked downloads APKs and checksum manifest from the current tree; historical Git tags/history and GitHub Release assets remain unchanged. Source audit now rejects APK/AAB binaries and private release-signing properties even if force-added. The upload workflow now defaults to read-only Release verification and preserves publication in a separate guarded draft-publishing job; no binaries are fetched from Git.
+- Added explicit environment/local-properties release signing while preserving debug and unsigned builds. Packaging reads actual Gradle version/output metadata; local checksum generation/verification rejects changed bytes, inventory drift, unsafe/duplicate names and symlinks.
+- Added weekly Dependabot for npm/Gradle/Actions, full upstream action SHAs, default-read-only tokens/non-persistent checkout credentials (least-privilege write only for explicit publishing), npm audit and isolated OWASP13.0.0 CI. Actual resolved native runtime artifacts are copied for scanning; scanner dependencies are isolated from AGP.
+- Recorded all 36 unchanged asset hashes/sizes and 13 component version/license records; verifier checks font name-table versions, library version markers, canonical UI and embedded offline GSAP. Reviewed MIT/OFL/Apache notices and flagged GSAP historical/current custom-license concerns without claiming legal clearance.
+- Rewrote SECURITY.md with version status, private-reporting setup status, response targets, threat boundaries and limitations. Added RELEASE.md and updated both READMEs/distribution/validation guidance.
+
+| Verification | Actual result |
+| --- | --- |
+| Debug and unsigned minified release | PASS: both Gradle builds; default contributor key works; build.py forces signing OFF even with a global Gradle signing property; APK packaging and checksums |
+| Missing signing inputs | PASS: explicit signed build fails closed |
+| Environment-based release signing | PASS: temporary seven-day QA key outside Git; apksigner verifies v2 signature |
+| Ignored local properties signing | PASS: assembleRelease with release environment inputs removed; private file removed afterward |
+| Signed/unsigned equivalence | PASS: every non-META-INF ZIP entry identical; unsigned non-debuggable/R8/resource checks pass |
+| Required UI / clock / YUV suites | PASS: UI/security probes, modern/legacy clock, all 72 byte-identical YUV cases |
+| Platform / input / request schema regressions | PASS: permission/copy checks, 23 input/budget cases, 159 actual bridge/request host cases |
+| Supply-chain negative tests | PASS: 17 corruption/inventory/symlink/traversal/duplicate/version/private-file/binary guards |
+| Bundled inventory | PASS: 36 asset hashes and 13 version/license records; fonts and embedded GSAP checked |
+| npm audit (includes development tools) | PASS: zero known vulnerabilities returned by the registry on 2026-11-19 |
+| Workflows / Dependabot | PASS: YAML parse, full-SHA/least-privilege checks, actionlint1.7.12 (official archive checksum verified) |
+| Candidate publication guard | PASS: signed QA verification only; wrong signer, wrong tag/file, debuggable and unsigned APKs rejected. No publishing mode was invoked |
+| Historical v1.4.1 Release download | PASS: public Release asset SHA-256 and ZIP integrity; published bytes not replaced |
+| Native runtime scan inputs | PASS: 20 actual resolved AAR/JAR runtime artifacts copied |
+| OWASP Dependency-Check full scan | BLOCKED: task/configuration runs but NVD anonymous/missing-key access fails and CISA KEV feed returns403; no clean dependency scan is claimed. CI remains fail-closed |
+| GitHub private reports | BLOCKED: GET verified disabled; enable request returned403; owner must enable in repository Code security settings |
+| Native/physical acceptance | NOT RUN in Phase4; Phase3 runtime gaps remain. Signing/static checks do not establish device behavior |
+
+No production key, password, token or new public APK was committed/published. Render/converter/clock/UI asset bytes are unchanged. Phase5 was not started. Feed access/NVD setup, private reporting activation and native acceptance remain gates before a hardened production release.
