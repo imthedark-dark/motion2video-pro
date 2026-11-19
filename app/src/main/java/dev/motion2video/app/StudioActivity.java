@@ -28,7 +28,7 @@ public final class StudioActivity extends MainActivity {
  private String savedSource="";
  private JSONObject savedDownload;
  private static final int STORAGE_REQUEST=41,RENDER_PERMISSIONS=42;
- private boolean bridgeReady;
+ private boolean bridgeReady,studioFailed,onlinePrompt;
  private String presentedJob="";
  private RenderRequest pendingRender;
  private final RenderService.Listener renderListener=this::renderState;
@@ -42,9 +42,10 @@ public final class StudioActivity extends MainActivity {
   studio=new WebView(this);studio.setBackgroundColor(Color.rgb(7,7,9));
   WebSettings settings=studio.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);
   settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+  WebViewSecurity.configure(studio,this,true);WebViewSecurity.network(studio,false);
   studio.setWebViewClient(new WebViewClient(){
    @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest request){
-    Uri u=request.getUrl();String host=u.getHost(),path=u.getPath()==null?"":u.getPath();
+    Uri u=request.getUrl();if(!"https".equals(u.getScheme())||u.getUserInfo()!=null||u.getPort()!=-1)return StageAssets.blocked();String host=u.getHost(),path=u.getPath()==null?"":u.getPath();
     try{
      if("studio.motion.local".equals(host)){
       if(path.equals("/index.html")||path.equals("/"))return assetResponse("text/html","studio.html");
@@ -56,9 +57,10 @@ public final class StudioActivity extends MainActivity {
      if("cdnjs.cloudflare.com".equals(host)&&path.equals("/ajax/libs/gsap/3.12.5/gsap.min.js"))return assetResponse("application/javascript","studio-gsap-3.12.5.min.js");
      if("cdn.tailwindcss.com".equals(host))return assetResponse("application/javascript","studio-tailwind-loader.js");
     }catch(Exception e){return missing();}
-    return super.shouldInterceptRequest(v,request);
+    return StageAssets.blocked();
    }
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
+   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){studioFailed=true;bridgeReady=false;if(pendingRender!=null){try{RenderRequest.file(StudioActivity.this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;}if(port!=null){port.close();port=null;}RenderService.rendererGone(StudioActivity.this);if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();if(!isFinishing())new android.app.AlertDialog.Builder(StudioActivity.this).setTitle("خطای نمایش برنامه").setMessage(WebViewSecurity.RENDERER_ERROR).setPositiveButton("بستن صفحه",(d,w)->finish()).setCancelable(false).show();return true;}
    @Override public void onPageStarted(WebView v,String url,Bitmap icon){if(url.equals(ORIGIN+"/index.html")){bridgeReady=false;if(port!=null){port.close();port=null;}}}
    @Override public void onPageFinished(WebView view,String url){
     if(!url.equals(ORIGIN+"/index.html"))return;
@@ -81,7 +83,7 @@ public final class StudioActivity extends MainActivity {
  }
  private WebResourceResponse assetResponse(String mime,String asset)throws IOException{
   WebResourceResponse r=new WebResourceResponse(mime,mime.startsWith("font/")?null:"UTF-8",getAssets().open(asset));
-  Map<String,String> headers=new HashMap<>();headers.put("Access-Control-Allow-Origin","*");r.setResponseHeaders(headers);return r;
+  Map<String,String> headers=new HashMap<>();headers.put("Access-Control-Allow-Origin","*");if(mime.equals("text/html"))headers.put("Content-Security-Policy","default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://motion.local; img-src data:; media-src https://studio.motion.local blob:; connect-src https://studio.motion.local; frame-src about:; manifest-src blob:; object-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'");r.setResponseHeaders(headers);return r;
  }
  private WebResourceResponse missing(){return new WebResourceResponse("text/plain","UTF-8",404,"Not Found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
  private WebResourceResponse exportResponse(WebResourceRequest req,File f)throws IOException{
@@ -100,10 +102,11 @@ public final class StudioActivity extends MainActivity {
   try{JSONObject o=new JSONObject();o.put("type",type);for(int i=0;i<entries.length;i+=2)o.put((String)entries[i],entries[i+1]);port.postMessage(new WebMessage(o.toString()));}catch(Exception ignored){}
  }
  private void command(String raw){
-  if(closed||raw==null||raw.length()>3*1024*1024)return;
+  if(closed||studioFailed||raw==null||raw.length()>3*1024*1024)return;
   try{
-   JSONObject m=new JSONObject(raw);String type=m.getString("type");
-   if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working);emitDownloads();renderState(state);return;}
+   JSONObject m=new JSONObject(raw);String type=BridgeValidation.command(m);
+   if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed);emitDownloads();renderState(state);return;}
+   if(type.equals("onlineResources")){if(working||saving)throw new IOException("هنگام رندر نمی‌توان دسترسی اینترنت را تغییر داد.");requestOnlineResources(m.getBoolean("enabled"));return;}
    if(type.equals("renderState")){renderState(RenderService.latest(this));return;}
    if(type.equals("downloads")){emitDownloads();return;}
    if(type.equals("layout")){layout(m);return;}
@@ -120,7 +123,7 @@ public final class StudioActivity extends MainActivity {
     if(type.equals("render"))export();else preview();return;
    }
    if(type.equals("chooseFile")){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,1);return;}
-  }catch(Exception e){emit("error","message",e.getMessage()==null?"درخواست معتبر نیست.":e.getMessage());}
+  }catch(Exception e){emit(working?"commandError":"error","message","درخواست معتبر نیست؛ نوع و تنظیمات ورودی را بررسی کن.");}
  }
  private void configure(JSONObject o)throws Exception{
   double sec=o.getDouble("duration");int rate=o.getInt("fps"),w=o.getInt("width"),h=o.getInt("height"),bits=o.getInt("bitrate");String mime=o.getString("mime");
@@ -131,21 +134,29 @@ public final class StudioActivity extends MainActivity {
   duration.setText(String.valueOf(sec));fps.setSelection(rate==60?1:0);sizeChoice.setSelection(size);codecChoice.setSelection(codec);quality.setSelection((bits/1000000-12)/4);gpu.setChecked(o.optBoolean("gpu",false));exportWidth=w;exportHeight=h;
  }
  private void layout(JSONObject m)throws Exception{
+  if(stageFailed)return;
   double scale=m.getDouble("dpr"),x=m.getDouble("x"),y=m.getDouble("y"),w=m.getDouble("width"),h=m.getDouble("height"),clip=m.optDouble("clipTop",0);
   if(!Double.isFinite(scale)||scale<=0||scale>10||!Double.isFinite(x)||!Double.isFinite(y)||!Double.isFinite(w)||!Double.isFinite(h)||!Double.isFinite(clip)||w<1||h<1||w*scale>10000||h*scale>10000)return;
   FrameLayout.LayoutParams p=new FrameLayout.LayoutParams((int)Math.round(w*scale),(int)Math.round(h*scale));p.leftMargin=(int)Math.round(x*scale);p.topMargin=(int)Math.round(y*scale);stage.setLayoutParams(p);
   stage.setClipBounds(new Rect(0,(int)Math.min(p.height,Math.max(0,clip*scale)),p.width,p.height));stage.setVisibility(m.optBoolean("visible",true)?View.VISIBLE:View.INVISIBLE);
  }
  @Override protected void onStagePageFinished(){
-  if(studio==null||working)return;final int token=++readyPoll;pollReady(token,0);
+  if(studio==null||stageFailed||working)return;final int token=++readyPoll;pollReady(token,0);
  }
  private void pollReady(int token,int attempts){
-  if(closed||working||token!=readyPoll||attempts>150)return;
+  if(closed||stageFailed||working||token!=readyPoll||attempts>150)return;
   stage.evaluateJavascript("window.__m2vReady&&window.__m2vDuration?window.__m2vDuration():null",v->{
-   if(closed||token!=readyPoll)return;
+   if(closed||stageFailed||token!=readyPoll)return;
    if(v!=null&&!v.equals("null")){try{emit("ready","duration",Double.parseDouble(v));}catch(Exception ignored){}}else stage.postDelayed(()->pollReady(token,attempts+1),200);
   });
  }
+ private void requestOnlineResources(boolean enable){
+  if(onlinePrompt){emit("onlineResources","enabled",onlineResourcesAllowed);return;}
+  if(!enable){onlineResourcesAllowed=false;WebViewSecurity.network(stage,false);emit("onlineResources","enabled",false);return;}
+  onlinePrompt=true;
+  new android.app.AlertDialog.Builder(this).setTitle("اجازهٔ منابع آنلاین؟").setMessage("کد واردشده می‌تواند به سرورهای اینترنتی درخواست بفرستد و محتوای شما را ارسال کند. این اجازه فقط برای همین بار بازبودن برنامه است. فقط برای کد مورد اعتماد فعال کن.").setPositiveButton("اجازه می‌دهم",(d,w)->{onlineResourcesAllowed=true;WebViewSecurity.network(stage,true);}).setNegativeButton("لغو",null).setOnDismissListener(d->{onlinePrompt=false;emit("onlineResources","enabled",onlineResourcesAllowed);}).show();
+ }
+ @Override protected void onStageRendererGone(){RenderService.rendererGone(this);emit("error","message",WebViewSecurity.RENDERER_ERROR);}
  @Override protected void onRenderProgress(int done,int total){emit("progress","done",done,"total",total);}
  @Override protected void onRenderResult(File file){exportPath="/exports/"+UUID.randomUUID()+"."+resultExt;emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length());saveCurrent();}
  private void emitDownloads(){emit("downloads","items",downloads.list(),"folder",DownloadRepository.RELATIVE);}
@@ -171,9 +182,10 @@ public final class StudioActivity extends MainActivity {
  }
  @Override protected void export(){
   try{
+   if(stageFailed||studioFailed)throw new IOException(WebViewSecurity.RENDERER_ERROR);
    if(RenderService.busy(RenderService.latest(this)))throw new IOException("یک رندر دیگر در حال اجراست.");
    int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920}};int[] size=sizes[sizeChoice.getSelectedItemPosition()];
-   JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked());
+   JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked()).put("onlineResources",onlineResourcesAllowed);
    pendingRender=RenderRequest.create(editor.getText().toString(),options);getPreferences(0).edit().putString("code",pendingRender.html).apply();
    ArrayList<String> permissions=new ArrayList<>();
    if(android.os.Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.POST_NOTIFICATIONS);
@@ -189,8 +201,8 @@ public final class StudioActivity extends MainActivity {
  private void renderState(JSONObject s){
   if(closed||!bridgeReady||s.optString("phase").isEmpty())return;
   working=RenderService.busy(s);
-  if(working){stage.onPause();emit("renderState","state",s);return;}
-  stage.onResume();String id=s.optString("id"),phase=s.optString("phase");
+  if(working){if(!stageFailed)stage.onPause();emit("renderState","state",s);return;}
+  if(!stageFailed)stage.onResume();String id=s.optString("id"),phase=s.optString("phase");
   if((id+":"+phase).equals(presentedJob))return;presentedJob=id+":"+phase;
   if(phase.equals("complete")){
    File file=new File(s.optString("file"));if(!file.isFile()){emit("error","message","فایل موقت خروجی دیگر موجود نیست؛ دانلودهای من را بررسی کن.");return;}
@@ -217,5 +229,5 @@ public final class StudioActivity extends MainActivity {
   if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){try(InputStream in=getContentResolver().openInputStream(data.getData())){emit("file","code",read(in,2*1024*1024));}catch(Exception e){emit("error","message","فایل HTML خوانده نشد.");}}return;}
   super.onActivityResult(r,code,data);
  }
- @Override protected void onDestroy(){closed=true;readyPoll++;if(port!=null)port.close();if(studio!=null)studio.destroy();super.onDestroy();}
+ @Override protected void onDestroy(){closed=true;readyPoll++;if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}
 }

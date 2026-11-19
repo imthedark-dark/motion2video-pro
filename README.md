@@ -63,6 +63,10 @@ Download/
 
 Android 10+ uses MediaStore.Downloads. Android 8 and 9 require storage permission. VP8/VP9 exports keep their actual `.webm` extension.
 
+## Security hardening — Phase 1 review
+
+On `security/phase-1`, imported content is offline by default. Allow online resources requires Persian confirmation; enabling it lets user code contact HTTPS servers. Bundled native libraries/fonts remain local. Separate WebViews, a closed MessagePort schema, early CSP, explicit safety settings and renderer-loss cleanup harden the boundary. See [audit findings](docs/AUDIT_REPORT.md), [decisions](docs/DECISIONS.md) and [security checks/limits](docs/PHASE1_SECURITY.md). This source work is not yet in the published v1.4.1 APK; physical-device and native renderer-kill acceptance remain unverified.
+
 ## Background rendering and speed
 
 Rendering runs in a foreground service with a private virtual display, independently of the Activity. Home, app switching, and removing the app screen do not cancel the job. Reopening the app restores progress or the completed result. Allow notifications to see progress and cancel from the notification.

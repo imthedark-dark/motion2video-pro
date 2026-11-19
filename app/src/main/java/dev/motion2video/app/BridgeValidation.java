@@ -1,0 +1,24 @@
+package dev.motion2video.app;
+import org.json.*;import java.io.IOException;import java.nio.charset.StandardCharsets;import java.util.*;
+/** Closed command schema for the trusted MessagePort. No reflection/Intent/path dispatch. */
+final class BridgeValidation {
+ private static void invalid()throws IOException{throw new IOException("ساختار درخواست معتبر نیست.");}
+ static String string(JSONObject o,String key,int max)throws Exception{Object v=o.get(key);if(!(v instanceof String)||((String)v).getBytes(StandardCharsets.UTF_8).length>max)invalid();return (String)v;}
+ static boolean bool(JSONObject o,String key)throws Exception{Object v=o.get(key);if(!(v instanceof Boolean))invalid();return (Boolean)v;}
+ private static void number(JSONObject o,String key,double min,double max,boolean integer)throws Exception{Object v=o.get(key);if(!(v instanceof Number))invalid();double n=((Number)v).doubleValue();if(!Double.isFinite(n)||n<min||n>max||(integer&&n!=Math.rint(n)))invalid();}
+ private static void keys(JSONObject o,String... names)throws Exception{Set<String> allowed=new HashSet<>(Arrays.asList(names));Iterator<String> i=o.keys();while(i.hasNext())if(!allowed.contains(i.next()))invalid();}
+ static String command(JSONObject o)throws Exception{
+  String type=string(o,"type",32);
+  switch(type){
+   case "preview":case "render":
+    keys(o,"type","html","options");string(o,"html",2*1024*1024);Object options=o.get("options");if(!(options instanceof JSONObject))invalid();JSONObject v=(JSONObject)options;
+    keys(v,"duration","fps","width","height","bitrate","mime","gpu");number(v,"duration",1,300,false);number(v,"fps",30,60,true);number(v,"width",1,1920,true);number(v,"height",1,1920,true);number(v,"bitrate",12000000,20000000,true);string(v,"mime",64);if(v.has("gpu"))bool(v,"gpu");break;
+   case "layout":
+    keys(o,"type","dpr","x","y","width","height","clipTop","visible");number(o,"dpr",.01,10,false);number(o,"x",-100000,100000,false);number(o,"y",-100000,100000,false);number(o,"width",1,10000,false);number(o,"height",1,10000,false);if(o.has("clipTop"))number(o,"clipTop",0,100000,false);if(o.has("visible"))bool(o,"visible");break;
+   case "openDownload":keys(o,"type","uri");String uri=string(o,"uri",2048);if(!uri.startsWith("content://"))invalid();break;
+   case "onlineResources":keys(o,"type","enabled");bool(o,"enabled");break;
+   case "hello":case "renderState":case "downloads":case "cancel":case "capabilities":case "openDownloads":case "save":case "chooseFile":keys(o,"type");break;
+   default:invalid();
+  }return type;
+ }
+}
