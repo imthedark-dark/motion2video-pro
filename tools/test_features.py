@@ -8,3 +8,6 @@ subprocess.run(['java','-cp',str(out),'CapabilityPolicyTest'],check=True)
 
 subprocess.run(['java','-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8','-d',str(out),str(java/'RenderEstimates.java'),str(root/'tests/java/RenderEstimatesTest.java')],check=True)
 subprocess.run(['java','-cp',str(out),'RenderEstimatesTest'],check=True)
+
+subprocess.run(['java','-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8','-d',str(out),str(java/'AudioPolicy.java'),str(java/'PcmTimeline.java'),str(root/'tests/java/AudioFeatureTest.java')],check=True)
+subprocess.run(['java','-cp',str(out),'AudioFeatureTest'],check=True)

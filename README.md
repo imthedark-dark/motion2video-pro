@@ -201,3 +201,5 @@ Explicit Story/Reels, YouTube and Square size presets are available. Up to 20 na
 Optional source start/end ranges are validated against the configured/detected animation duration. Full-range export is unchanged; selected ranges keep output PTS at zero and round frame count at the selected fps.
 
 The studio estimates encoded size before rendering and remaining frame-render time from measured progress. Previous same-profile render speed is retained locally for a rough preflight estimate. Estimates are not guarantees and exclude unpredictable loading/audio/save delays.
+
+Optional Android audio accepts MP3/AAC/WAV/M4A (≤100 MiB, ≤30 min, mono/stereo, device decoder dependent). Trim, volume and fades feed streaming 48kHz stereo PCM16 and AAC-LC 192kbps; a separate MP4 remux preserves encoded video samples/PTS. Short audio pads with silence. WebM audio and >2 channels/non-PCM16 decoded formats fail clearly; silent output stays the default. Temporary audio assets (≤8, ≤160 MiB total) can be cleared in-app when idle. Native A/V acceptance remains pending.

@@ -38,3 +38,9 @@ Validated paired numeric source bounds, at least one frame, inside 1–300s conf
 
 ## 6d — estimates
 Added encoded-size estimate with container allowance, zero/unknown-safe native ETA and optional locally measured preflight timing (24 profiles). Labels explicitly call these estimates; source loading/audio/save can differ. Estimates never influence encoding or scheduling. Full debug/unsigned release and regression suite PASS, plus numerical unknown/completion/rate/large-size/audio-overhead checks and UI estimate visibility. No hardware performance claim.
+
+## 6b — optional audio
+Native picker and private UUID assets validate size/type/duration/rate/channels; 8 assets/160MiB total, each ≤100MiB/30min. Parser concurrency is bounded and callers time out. DSP streams linear-resampled 48k stereo PCM16, trim/volume/clipping/fades and silence padding; AAC-LC 192kbps and MP4 remux copy original video packets/PTS. Cancel/time/memory/disk bounds and finally/recovery cleanup cover the optional pass. Silent export never enters decoding/DSP/remux. WebM audio, unsupported PCM and unavailable decoders fail gracefully.
+Host tests exercise production DSP/import/option policies and native message transport; an AudioExportTest debug instrumentation fixture compares video sample hashes/PTS before/after mux, checks AAC PTS bounds and cancellation. It must run on a device; compilation is not execution. AAC priming/fade audibility/lip sync, MP3/AAC/M4A variants, legacy picker and native parser/encoder cancellation need physical acceptance.
+
+6b validation: debug and unsigned/R8 release builds PASS; full host suite PASS including 237 bridge/request-schema cases, production audio DSP/policy checks, native-transport audio selection/rejection tests, clock and 72 byte-identical YUV cases. AudioExportTest and all existing instrumentation fixtures compile into the debug test APK; NOT executed on a physical device. No production signing key or release generated.

@@ -14,7 +14,7 @@ public final class RenderService extends Service {
  public static boolean busy(JSONObject s){String phase=s.optString("phase");return phase.equals("preparing")||phase.equals("rendering")||phase.equals("saving")||phase.equals("cancelling");}
  public static JSONObject latest(Context c){
   String raw=stateJson;if(raw==null)raw=c.getSharedPreferences("render_state",MODE_PRIVATE).getString("last","{}");
-  try{JSONObject s=new JSONObject(raw);if(s.optString("phase").equals("error"))s.put("message",PublicErrors.sanitize(s.optString("message")));if(s.has("warning"))s.put("warning",PublicErrors.SAVE_WARNING);boolean interrupted=busy(s);if((interrupted||s.optBoolean("cleanupPending"))&&instance==null){String id=s.optString("id"),ext=s.optString("ext");if(id.matches("[a-f0-9-]{36}")){if(ext.equals("mp4")||ext.equals("webm")){new File(c.getCacheDir(),"render-"+id+"."+ext).delete();new File(c.getCacheDir(),"render-"+id+"."+ext+".faststart").delete();}try{RenderRequest.file(c,id).delete();}catch(Exception ignored){}}s.remove("cleanupPending");s.put("phase","error");if(!s.has("message")||interrupted)s.put("message","رندر قبلی با توقف فرایند برنامه قطع شد؛ دوباره اجرا کن.");stateJson=s.toString();c.getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",stateJson).apply();}return s;}catch(JSONException e){return new JSONObject();}
+  try{JSONObject s=new JSONObject(raw);if(s.optString("phase").equals("error"))s.put("message",PublicErrors.sanitize(s.optString("message")));if(s.has("warning"))s.put("warning",PublicErrors.SAVE_WARNING);boolean interrupted=busy(s);if((interrupted||s.optBoolean("cleanupPending"))&&instance==null){String id=s.optString("id"),ext=s.optString("ext");if(id.matches("[a-f0-9-]{36}")){if(ext.equals("mp4")||ext.equals("webm")){new File(c.getCacheDir(),"render-"+id+"."+ext).delete();new File(c.getCacheDir(),"render-"+id+"."+ext+".faststart").delete();}for(String suffix:new String[]{".pcm",".m4a",".mp4",".mp4.faststart"})new File(c.getCacheDir(),"audio-"+id+suffix).delete();try{RenderRequest.file(c,id).delete();}catch(Exception ignored){}}s.remove("cleanupPending");s.put("phase","error");if(!s.has("message")||interrupted)s.put("message","رندر قبلی با توقف فرایند برنامه قطع شد؛ دوباره اجرا کن.");stateJson=s.toString();c.getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",stateJson).apply();}return s;}catch(JSONException e){return new JSONObject();}
  }
  public static synchronized void recordDownload(Context c,String file,JSONObject item){try{JSONObject s=latest(c);if(s.optString("phase").equals("complete")&&file.equals(s.optString("file"))){s.put("download",item);s.remove("warning");stateJson=s.toString();c.getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",stateJson).apply();}}catch(JSONException ignored){}}
  public static void addListener(Listener l){listeners.add(l);}public static void removeListener(Listener l){listeners.remove(l);}
@@ -41,7 +41,9 @@ public final class RenderService extends Service {
  private void runJob(){
   final RenderRequest job=request;File result=null;
   try{
+   if(job.audio!=null)AudioComposer.validate(this,job);
    engine=new RenderEngine(this,job);result=engine.render(()->cancelled,(done,total)->publish("rendering",done,"رندر فریم‌ها",null,null,null));
+   if(job.audio!=null){publish("saving",job.frames,"پردازش صدا و اتصال به MP4…",result,null,null);AudioComposer.attach(this,job,result,()->cancelled);}
    if(cancelled)throw new IOException("رندر لغو شد.");publish("saving",job.frames,"ذخیره در دانلودها…",result,null,null);
    JSONObject download=null;String warning=null;
    try{download=new DownloadRepository(this).save(result,"video/"+job.ext,job.ext,()->cancelled);}catch(Exception e){warning=PublicErrors.SAVE_WARNING;}
@@ -56,7 +58,7 @@ public final class RenderService extends Service {
   try{
    JSONObject s=new JSONObject().put("phase",phase).put("done",done).put("message",message).put("elapsedMs",Math.max(0,System.currentTimeMillis()-began));
    if(request!=null)s.put("id",request.id).put("total",request.frames).put("ext",request.ext).put("mime",request.mime).put("options",request.options());
-   if(request!=null)s.put("estimatedBytes",RenderEstimates.bytes(request.frames,request.fps,request.bitrate,false)).put("remainingMs",phase.equals("rendering")?RenderEstimates.remainingMillis(done,request.frames,s.optLong("elapsedMs")):-1);
+   if(request!=null)s.put("estimatedBytes",RenderEstimates.bytes(request.frames,request.fps,request.bitrate,request.audio!=null)).put("remainingMs",phase.equals("rendering")?RenderEstimates.remainingMillis(done,request.frames,s.optLong("elapsedMs")):-1);
    if(file!=null)s.put("file",file.getAbsolutePath()).put("size",file.length());if(download!=null)s.put("download",download);if(warning!=null)s.put("warning",warning);if(timeoutStopping)s.put("cleanupPending",true);
    final String json=s.toString();stateJson=json;long now=System.currentTimeMillis();boolean active=busy(s);
    if(!active||now-lastPersist>1000){getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",json).apply();lastPersist=now;}

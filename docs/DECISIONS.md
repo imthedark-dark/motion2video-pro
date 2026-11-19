@@ -53,3 +53,5 @@
 Capability fallback is a proposal requiring explicit application and a new render action. Only successful codec probes are cached; no runtime benchmark or added work per frame. Production signing and publication remain owner-only.
 
 Phase 6c: source capture uses rangeStart + i/fps; output PTS stays i*1e6/fps. Span must contain at least one frame. Dynamic scripts with unknowable duration use the user-confirmed duration bound; no claim of inferring all JavaScript time.
+
+Phase 6b: audio is a bounded optional post-pass after the unchanged silent encoder. Source trim maps to output zero; video sample bytes and PTS are copied verbatim. AAC frame quantization/encoder priming and OEM extractor behavior need physical-device validation; do not promise sample-perfect A/V on untested devices. Reject unsupported PCM layouts rather than guessing. No FFmpeg/native codec library was added to the APK.

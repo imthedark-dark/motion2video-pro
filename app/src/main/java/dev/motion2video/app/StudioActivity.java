@@ -123,11 +123,13 @@ public final class StudioActivity extends MainActivity {
     configure(m.getJSONObject("options"));editor.setText(html);
     if(type.equals("render"))export();else preview();return;
    }
+   if(type.equals("clearAudioAssets")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");AudioAssets.clear(this);emit("audioCleared");return;}
+   if(type.equals("chooseAudio")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("audio/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,3);return;}
    if(type.equals("chooseFile")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,1);return;}
   }catch(OutOfMemoryError memory){memoryError();}catch(Exception e){emit(working?"commandError":"error","message","درخواست معتبر نیست؛ نوع و تنظیمات ورودی را بررسی کن.");}
  }
  private void configure(JSONObject o)throws Exception{
-  advancedOptions=new JSONObject();for(String key:new String[]{"rangeStart","rangeEnd"})if(o.has(key))advancedOptions.put(key,o.get(key));
+  advancedOptions=new JSONObject();for(String key:new String[]{"rangeStart","rangeEnd","audio"})if(o.has(key))advancedOptions.put(key,o.get(key));
   double sec=o.getDouble("duration");int rate=o.getInt("fps"),w=o.getInt("width"),h=o.getInt("height"),bits=o.getInt("bitrate");String mime=o.getString("mime");
   if(!Double.isFinite(sec)||sec<1||sec>300||(rate!=30&&rate!=60)||(bits!=12000000&&bits!=16000000&&bits!=20000000))throw new IOException("تنظیمات رندر معتبر نیست.");
   int size=-1;int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}};
@@ -189,13 +191,14 @@ public final class StudioActivity extends MainActivity {
  @Override protected void export(){
   try{
    if(stageFailed||studioFailed)throw new IOException(WebViewSecurity.RENDERER_ERROR);
+   if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");
    if(RenderService.busy(RenderService.latest(this)))throw new IOException("یک رندر دیگر در حال اجراست.");
    int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}};int[] size=sizes[sizeChoice.getSelectedItemPosition()];
    JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked()).put("onlineResources",onlineResourcesAllowed);
-   for(String key:new String[]{"rangeStart","rangeEnd"})if(advancedOptions.has(key))options.put(key,advancedOptions.get(key));
+   for(String key:new String[]{"rangeStart","rangeEnd","audio"})if(advancedOptions.has(key))options.put(key,advancedOptions.get(key));
    final RenderRequest candidate=RenderRequest.create(editor.getText().toString(),options);pendingRender=candidate;working=true;
-   new Thread(()->{try{CodecSupport.encoder(candidate.mime,candidate.width,candidate.height,candidate.fps,candidate.bitrate);runOnUiThread(()->{if(closed||pendingRender!=candidate)return;try{authorizeRender(candidate);}catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}});}
-    catch(Throwable unsupported){org.json.JSONObject proposed=null;if(!(unsupported instanceof OutOfMemoryError))try{proposed=CodecSupport.suggestion(candidate);}catch(Throwable ignored){}final org.json.JSONObject next=proposed;
+   new Thread(()->{boolean videoSupported=false;try{CodecSupport.encoder(candidate.mime,candidate.width,candidate.height,candidate.fps,candidate.bitrate);videoSupported=true;if(candidate.audio!=null)AudioComposer.validate(this,candidate);runOnUiThread(()->{if(closed||pendingRender!=candidate)return;try{authorizeRender(candidate);}catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}});}
+    catch(Throwable unsupported){org.json.JSONObject proposed=null;if(!videoSupported&&!(unsupported instanceof OutOfMemoryError))try{proposed=CodecSupport.suggestion(candidate);}catch(Throwable ignored){}final org.json.JSONObject next=proposed;
      runOnUiThread(()->{if(closed||pendingRender!=candidate)return;pendingRender=null;working=false;emit("error","message",PublicErrors.message(unsupported));if(next!=null&&!isFinishing())new android.app.AlertDialog.Builder(this).setTitle("پیشنهاد سازگار با دستگاه").setMessage(next.optInt("width")+" × "+next.optInt("height")+" / "+next.optInt("fps")+" FPS / "+next.optString("mime")+"\nاین پیشنهاد خودکار رندر نمی‌شود؛ پس از اعمال دوباره تبدیل را بزن.").setPositiveButton("اعمال پیشنهاد",(d,w)->{try{configure(next);emit("suggestedOptions","options",next);}catch(Exception e){emit("error","message",PublicErrors.message(e));}}).setNegativeButton("لغو",null).show();});}
    },"codec-capability").start();
   }catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}
@@ -240,6 +243,7 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onRenderError(String error){emit(cancelled?"cancelled":"error","message",error==null?"رندر انجام نشد.":error);}
  @Override protected void onVideoSaved(){emit("saved");}
  @Override protected void onActivityResult(int r,int code,Intent data){
+  if(r==3){if(code==RESULT_OK&&data!=null&&data.getData()!=null&&!importing){importing=true;emit("audioImporting");new Thread(()->{try{JSONObject item=AudioAssets.importFile(this,data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("audioSelected","item",item);});}catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;runOnUiThread(()->emit("audioIdle"));}},"audio-import").start();}return;}
   if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("file","code",html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
   super.onActivityResult(r,code,data);
  }
