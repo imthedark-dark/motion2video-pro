@@ -81,3 +81,9 @@ Compare the probe output with `background-validation.json`. Remote verification 
 ## Add a physical-device report
 
 Open an issue with model, Android/API version, WebView version, app tag/SHA-256, codec/settings, test animation, background/notification steps, resulting frame count/duration and pass/fail evidence. Remove personal data. Only add a device to the tested list after a reproducible report; do not infer support from an SDK minimum or a codec name.
+
+## Phase 3 (2026-11-19)
+
+Debug and R8/resource-shrunk unsigned release builds passed. UI/security probes, clock, all 72 byte-identical YUV cases and platform/copy regressions passed. Production import/memory/deadline policies passed 23 host cases; bridge/request sources passed 159 host schema/output-setting cases using the external JVM JSON test runtime. Compiled APK component/resource/R8 checks and asset hashes also passed.
+
+Phase 3 instrumentation compiled and installed but could not execute reliably: the API30 emulator's Android system process suffered network-stack crashes and ActivityManager remained unavailable at instrumentation startup. No new native or physical-device PASS is claimed. In particular, malicious-script termination/cancellation, preview timeout teardown, memory-pressure cancellation, large-import Activity recreation and the final minified APK's actual export remain acceptance gaps. See [Phase 3 reproduction and caveats](PHASE3_INPUT.md).

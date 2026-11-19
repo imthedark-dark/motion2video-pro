@@ -50,7 +50,7 @@ public final class RenderService extends Service {
   }catch(Throwable e){if(result!=null)result.delete();publish(rendererError!=null?"error":cancelled?"cancelled":"error",0,rendererError!=null?rendererError:cancelled?"رندر لغو شد؛ فایل ناقص حذف شد.":error(e),null,null,null);}
   finally{engine=null;try{RenderRequest.file(this,job.id).delete();}catch(Exception ignored){}main.post(this::finishService);}
  }
- private static String error(Throwable t){while(t.getCause()!=null&&t.getCause()!=t)t=t.getCause();if(t instanceof OutOfMemoryError)return "حافظهٔ کافی برای این اندازه نیست؛ اندازهٔ کوچک‌تری انتخاب کن.";return t.getMessage()==null?t.getClass().getSimpleName():t.getMessage();}
+ private static String error(Throwable t){while(!(t instanceof IOException)&&t.getCause()!=null&&t.getCause()!=t)t=t.getCause();if(t instanceof OutOfMemoryError)return "حافظهٔ کافی برای این اندازه نیست؛ اندازهٔ کوچک‌تری انتخاب کن.";return t.getMessage()==null?t.getClass().getSimpleName():t.getMessage();}
  private synchronized void publish(String phase,int done,String message,File file,JSONObject download,String warning){
   if(!alive||instance!=this||(timeoutStopping&&!phase.equals("error")))return;
   try{

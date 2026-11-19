@@ -19,10 +19,11 @@ import java.util.concurrent.*;
 final class OffscreenStage implements AutoCloseable {
  private final Context context;private final RenderRequest request;private final Handler main=new Handler(Looper.getMainLooper());
  private VirtualDisplay display;private ImageReader sink;private Presentation window;private WebView web;private WebMessagePort clock;
+ private final CompletableFuture<Void> released=new CompletableFuture<>();
  private volatile IOException rendererFailure;
- private volatile boolean closed,attached;private boolean pageFinished;private Capture pending;
+ private volatile boolean closed,attached;private boolean pageFinished;private volatile Capture pending;private volatile CompletableFuture<String> pendingJs;private final java.util.Set<Bitmap> copying=java.util.concurrent.ConcurrentHashMap.newKeySet();
  private static final class Capture{final int token;final Bitmap bitmap;final CompletableFuture<Void> done=new CompletableFuture<>();Capture(int t,Bitmap b){token=t;bitmap=b;}}
- OffscreenStage(Context context,RenderRequest request)throws Exception{this.context=context;this.request=request;onMain(()->{create();return null;});}
+ OffscreenStage(Context context,RenderRequest request)throws Exception{this.context=context;this.request=request;try{onMain(()->{if(!closed)create();return null;});}catch(Exception e){closed=true;main.post(this::closeNow);throw e;}}
  private <T>T onMain(Callable<T> action)throws Exception{if(Looper.myLooper()==Looper.getMainLooper())return action.call();FutureTask<T> task=new FutureTask<>(action);main.post(task);return task.get(45,TimeUnit.SECONDS);}
  private void create()throws Exception{
   try{
@@ -40,7 +41,7 @@ final class OffscreenStage implements AutoCloseable {
    WebViewSecurity.configure(web,context,false);WebViewSecurity.network(web,request.onlineResources);
    web.setWebViewClient(new WebViewClient(){
     @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){return StageAssets.response(context,r.getUrl(),request.onlineResources);}
-    @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){rendererFailure=new IOException(WebViewSecurity.RENDERER_ERROR);RenderService.rendererGone(context);closeNow();return true;}
+    @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){if(rendererFailure==null)rendererFailure=new IOException(WebViewSecurity.RENDERER_ERROR);if(!closed)RenderService.rendererGone(context);closeNow();return true;}
     @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
     @Override public void onPageFinished(WebView v,String url){
      if(closed||pageFinished)return;pageFinished=true;
@@ -61,10 +62,10 @@ final class OffscreenStage implements AutoCloseable {
    web.loadDataWithBaseURL("https://motion.local/",ImportedContent.secure(code,request.onlineResources),"text/html","UTF-8",null);
   }catch(Throwable e){closeNow();throw new IOException("ساخت محیط مستقل رندر انجام نشد: "+e.getClass().getSimpleName(),e);}
  }
- private String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();main.post(()->{if(closed){f.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));return;}web.evaluateJavascript(script,f::complete);});return f.get(45,TimeUnit.SECONDS);}
+ private String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();pendingJs=f;main.post(()->{if(closed){f.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));return;}web.evaluateJavascript(script,f::complete);});try{return f.get(RenderBudget.STALL_MS,TimeUnit.MILLISECONDS);}catch(TimeoutException e){IOException timeout=new IOException("اجرای کد موشن در زمان مجاز پاسخ نداد.",e);abort(timeout,true);throw timeout;}finally{if(pendingJs==f)pendingJs=null;}}
  void awaitReady(java.util.function.BooleanSupplier cancelled)throws Exception{
-  long end=System.currentTimeMillis()+120000;
-  while(true){if(rendererFailure!=null)throw rendererFailure;if(cancelled.getAsBoolean())throw new IOException("رندر لغو شد.");if(System.currentTimeMillis()>end)throw new IOException("HTML، قلم‌ها یا اتصال ساعت رندر آماده نشد.");
+  long end=SystemClock.elapsedRealtime()+RenderBudget.READY_MS;
+  while(true){if(rendererFailure!=null)throw rendererFailure;if(cancelled.getAsBoolean())throw new IOException("رندر لغو شد.");if(SystemClock.elapsedRealtime()>end)throw new IOException("HTML، قلم‌ها یا اتصال ساعت رندر آماده نشد.");
    if(attached&&"true".equals(js("window.__m2vReady===true&&(!window.lottie||!lottie.getRegisteredAnimations||lottie.getRegisteredAnimations().every(a=>a.isLoaded))"))&&onMain(()->web.getWidth()==request.width&&web.getHeight()==request.height))return;
    Thread.sleep(100);
   }
@@ -74,22 +75,36 @@ final class OffscreenStage implements AutoCloseable {
    if(closed){c.done.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));return;}
    pending=c;web.evaluateJavascript("window.__m2vSeek("+time+","+token+")",value->{if(!"true".equals(value))c.done.completeExceptionally(new IOException("کنترل زمان موشن خطا داد."));});
   });
-  c.done.get(45,TimeUnit.SECONDS);
+  try{c.done.get(RenderBudget.STALL_MS,TimeUnit.MILLISECONDS);}catch(TimeoutException e){IOException timeout=new IOException("رسم فریم بیش از ۴۵ ثانیه طول کشید؛ رندر متوقف شد.",e);abort(timeout,true);throw timeout;}
  }
  private void draw(Capture c){
   try{
-   if(request.gpu){PixelCopy.request(window.getWindow(),new Rect(0,0,request.width,request.height),c.bitmap,status->{if(status==PixelCopy.SUCCESS)c.done.complete(null);else c.done.completeExceptionally(new IOException("ضبط GPU انجام نشد: "+status));if(pending==c)pending=null;},main);}
+   if(request.gpu){copying.add(c.bitmap);PixelCopy.request(window.getWindow(),new Rect(0,0,request.width,request.height),c.bitmap,status->{copying.remove(c.bitmap);if(status==PixelCopy.SUCCESS)c.done.complete(null);else c.done.completeExceptionally(new IOException("ضبط GPU انجام نشد: "+status));if(pending==c)pending=null;},main);}
    else{Canvas canvas=new Canvas(c.bitmap);canvas.drawColor(Color.BLACK);web.draw(canvas);c.done.complete(null);if(pending==c)pending=null;}
   }catch(Throwable e){c.done.completeExceptionally(e);if(pending==c)pending=null;}
  }
- void cancelPending(){main.post(()->{Capture c=pending;if(c!=null)c.done.completeExceptionally(new IOException("رندر لغو شد."));pending=null;});}
+ boolean canRecycle(Bitmap bitmap){return !copying.contains(bitmap);}
+ void cancelPending(){abort(new IOException("رندر لغو شد."),false);}
+ void abort(IOException error,boolean terminate){
+  rendererFailure=error;closed=true;
+  CompletableFuture<String> f=pendingJs;if(f!=null)f.completeExceptionally(error);
+  Capture c=pending;if(c!=null)c.done.completeExceptionally(error);
+  main.post(()->{
+   if(terminate||Build.VERSION.SDK_INT<29||web==null){if(terminate)terminateRenderer();closeNow();return;}
+   // A responsive renderer answers before teardown. A stuck script cannot survive cancellation.
+   WebView old=web;
+   try{old.evaluateJavascript("true",ignored->{if(web==old)closeNow();});}catch(RuntimeException ignored){terminateRenderer();closeNow();return;}
+   main.postDelayed(()->{if(web==old){terminateRenderer();closeNow();}},2000);
+  });
+ }
+ private void terminateRenderer(){if(Build.VERSION.SDK_INT>=29&&web!=null)try{WebViewRenderProcess process=web.getWebViewRenderProcess();if(process!=null)process.terminate();}catch(RuntimeException ignored){}}
  private void closeNow(){
-  closed=true;Capture c=pending;pending=null;if(c!=null)c.done.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));
+  closed=true;CompletableFuture<String> f=pendingJs;if(f!=null)f.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));Capture c=pending;pending=null;if(c!=null)c.done.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));
   if(clock!=null){try{clock.close();}catch(RuntimeException ignored){}clock=null;}
   if(web!=null){WebView old=web;web=null;try{if(old.getParent() instanceof ViewGroup)((ViewGroup)old.getParent()).removeView(old);}catch(RuntimeException ignored){}try{if(rendererFailure==null)old.stopLoading();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
   if(window!=null){try{window.dismiss();}catch(RuntimeException ignored){}window=null;}
   if(display!=null){try{display.release();}catch(RuntimeException ignored){}display=null;}
-  if(sink!=null){try{sink.close();}catch(RuntimeException ignored){}sink=null;}
+  if(sink!=null){try{sink.close();}catch(RuntimeException ignored){}sink=null;}released.complete(null);
  }
- @Override public void close(){try{onMain(()->{closeNow();return null;});}catch(Exception ignored){}}
+ @Override public void close(){if(closed&&Looper.myLooper()!=Looper.getMainLooper())try{released.get(3,TimeUnit.SECONDS);}catch(Exception ignored){}try{onMain(()->{closeNow();return null;});}catch(Exception ignored){}}
 }

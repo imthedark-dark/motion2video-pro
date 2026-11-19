@@ -99,10 +99,11 @@ public final class StudioActivity extends MainActivity {
  }
  private void emit(String type,Object... entries){
   if(closed||port==null)return;
-  try{JSONObject o=new JSONObject();o.put("type",type);for(int i=0;i<entries.length;i+=2)o.put((String)entries[i],entries[i+1]);port.postMessage(new WebMessage(o.toString()));}catch(Exception ignored){}
+  try{JSONObject o=new JSONObject();o.put("type",type);for(int i=0;i<entries.length;i+=2)o.put((String)entries[i],entries[i+1]);port.postMessage(new WebMessage(o.toString()));}catch(OutOfMemoryError memory){memoryError();}catch(Exception ignored){}
  }
+ private void memoryError(){try{if(port!=null)port.postMessage(new WebMessage("{\"type\":\""+(working?"commandError":"error")+"\",\"message\":\"حافظه کافی نیست؛ حجم HTML یا اندازهٔ خروجی را کاهش بده.\"}"));}catch(Exception|OutOfMemoryError ignored){}}
  private void command(String raw){
-  if(closed||studioFailed||raw==null||raw.length()>3*1024*1024)return;
+  if(closed||studioFailed||raw==null||raw.length()>ImportPolicy.MAX_JSON_BYTES)return;
   try{
    JSONObject m=new JSONObject(raw);String type=BridgeValidation.command(m);
    if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed);emitDownloads();renderState(state);return;}
@@ -118,12 +119,12 @@ public final class StudioActivity extends MainActivity {
    }
    if(working||saving)throw new IOException("رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");
    if(type.equals("preview")||type.equals("render")){
-    String html=m.getString("html");if(html.isEmpty()||html.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>2*1024*1024)throw new IOException("اندازهٔ HTML باید کمتر از دو مگابایت باشد.");
+    String html=m.getString("html");ImportPolicy.validate(html);
     configure(m.getJSONObject("options"));editor.setText(html);
     if(type.equals("render"))export();else preview();return;
    }
-   if(type.equals("chooseFile")){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,1);return;}
-  }catch(Exception e){emit(working?"commandError":"error","message","درخواست معتبر نیست؛ نوع و تنظیمات ورودی را بررسی کن.");}
+   if(type.equals("chooseFile")){if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("text/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,1);return;}
+  }catch(OutOfMemoryError memory){memoryError();}catch(Exception e){emit(working?"commandError":"error","message","درخواست معتبر نیست؛ نوع و تنظیمات ورودی را بررسی کن.");}
  }
  private void configure(JSONObject o)throws Exception{
   double sec=o.getDouble("duration");int rate=o.getInt("fps"),w=o.getInt("width"),h=o.getInt("height"),bits=o.getInt("bitrate");String mime=o.getString("mime");
@@ -230,7 +231,7 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onRenderError(String error){emit(cancelled?"cancelled":"error","message",error==null?"رندر انجام نشد.":error);}
  @Override protected void onVideoSaved(){emit("saved");}
  @Override protected void onActivityResult(int r,int code,Intent data){
-  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){try(InputStream in=getContentResolver().openInputStream(data.getData())){emit("file","code",read(in,2*1024*1024));}catch(Exception e){emit("error","message","فایل HTML خوانده نشد.");}}return;}
+  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("file","code",html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",e.getMessage()==null?"فایل HTML خوانده نشد.":e.getMessage()));}finally{importing=false;}},"html-import").start();}return;}
   super.onActivityResult(r,code,data);
  }
  @Override protected void onDestroy(){closed=true;readyPoll++;if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}

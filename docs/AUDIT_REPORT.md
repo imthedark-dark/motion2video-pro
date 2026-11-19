@@ -91,3 +91,33 @@ Release QA used a temporary development-signed copy outside Git, not production 
 Environment preparation used a checksum-verified full JDK17 because the workspace's original stripped JDK lacked jlink, plus local proxy/trust configuration outside the repository. TLS verification was not disabled in the app or build. The source wrapper distribution is SHA-256 pinned. Library license notices were added for AndroidX and related runtime dependencies.
 
 Remaining acceptance gaps: physical devices; actual API26/28 storage prompts, API33+ notification denial, Android15 real quota dispatch, Windows helper execution, WebGL/1080p60/all codec combinations. Overall watchdog/memory/import hardening is Phase 3; signing/supply chain is Phase 4. The user must confirm before Phase 3.
+
+## Phase 3 baseline (before implementation)
+
+Verified on commit `8f65384`: MainActivity and StudioActivity read imports with a 2 MiB byte cap and replacement UTF-8 decoding, without checking provider filename or MIME. Browser uploads also use 2 MiB and replacement decoding. BridgeValidation and RenderRequest cap HTML at 2 MiB; request JSON is capped at 3 MiB. No ZIP or directory import exists. RenderRequest already restricts duration to 1–300 seconds, FPS to 30/60, bitrate to 12/16/20 Mbps, and four output sizes up to 1920×1080 or 1080×1920. StudioActivity repeats these enum checks; BridgeValidation's numeric ranges alone are broader. OffscreenStage has 45-second operation waits and a 120-second readiness deadline. RenderEngine has encoder waits and cleanup, but no memory preflight, ongoing memory ceiling or overall deadline. User cancellation does not wake a pending JavaScript readiness future. The legacy MainActivity path has 15-second JavaScript/frame waits and a 30-second preparation deadline.
+
+### Phase 3 implementation and host verification
+
+- Added shared 20 MiB HTML admission policy, provider metadata checks, bounded streaming and strict UTF-8/BOM handling in both native import paths; browser uploads mirror it. Invalid input preserves editor content. Native imports run off the UI thread with one concurrent worker. No ZIP/folder import was added.
+- Applied payload limits to the closed bridge and private jobs; closed enum/type/range validation now rejects fractional/coerced/overflow settings before native configuration.
+- Added Java heap allocation preflight, one-second heap/system-low-memory checks, a monotonic two-hour service-render deadline and stalled-pipeline deadline. Existing 45-second operations/120-second readiness limits remain. Pending JavaScript/capture waits wake on cancellation. Deadline teardown attempts renderer termination on API29+. PixelCopy-owned bitmaps are not prematurely recycled.
+- Added a generation-scoped native preview responsiveness probe with timeout/teardown, so automatic preview does not rely on a render job being started before detecting a stuck script.
+- Removed HTML from Activity saved-state Bundles to avoid Binder-size failures with large imports; the existing private editor preferences retain restoration.
+- Preserved native Persian error messages when exceptions are wrapped. Rendering choices, frame timestamps/counts, converter, clock and encoder calculations are unchanged.
+
+| Verification | Actual result |
+| --- | --- |
+| `python3 build.py` | PASS, debug APK built |
+| `python3 build.py --release` | PASS, non-debuggable R8/resource-shrunk unsigned release built |
+| `npm run test:ui` | PASS: layouts, motion frames, bridge/download flows, import type/encoding/size rejection and valid imports above old 2 MiB limit; offline probes reached zero external TLS endpoints |
+| `npm run test:clock` | PASS: modern CSS clock and legacy WebView fallback |
+| `python3 tools/test_yuv.py` | PASS: all 72 byte-identical cases |
+| `python3 tools/test_platform.py` | PASS: permission boundaries and copy/cancel regression cases |
+| `python3 tools/test_input.py` | PASS: 23 production import/encoding/byte-limit/memory/deadline checks, including exact 20 MiB and multibyte overflow |
+| `python3 tools/verify_phase2.py` | PASS: actual compiled debug/release component boundaries, network XML, provider roots, R8 and canonical HTML |
+| `tools/test_requests.py` with supplied Android35 API jar and org.json 20240303 JVM jar | PASS: 159 actual production bridge/request setting/schema cases; no Android framework/codec calls |
+| Phase 3 instrumentation APK | Compiled and packaged successfully; runtime checks unverified |
+| Phase 3 native execution | BLOCKED: API30 emulator system process crashed with `Lost network stack`; after APK installation, `am instrument` repeatedly failed before test startup with `Can’t connect to activity manager`. No native PASS is claimed for this phase |
+| Asset hashes / source audit | PASS: all locked hashes match; no credential findings |
+
+See [Phase 3 limits](PHASE3_INPUT.md). These checks do not establish a total renderer/GPU memory quota, physical-device behavior or timely interruption of blocked platform calls. No production-signed APK was published and no Phase 4 changes were started.

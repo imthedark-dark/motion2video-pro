@@ -173,3 +173,9 @@ This README takes visual inspiration from **Wow Profile**, featured in the [GitS
 **Dark** · Code in. Motion out.
 
 </div>
+
+### Phase 3 security review
+
+HTML imports now allow up to 20 MiB with filename/MIME checks and strict UTF-8 decoding. Render settings are validated at each boundary. Memory preflight, a periodic heap/system-memory watchdog, two-hour render deadline and cancellable script waits stop oversized or stalled jobs without changing frame timing or quality. See [limits and reproducible checks](docs/PHASE3_INPUT.md). Renderer/GPU memory and blocked platform calls cannot be fully bounded by the app. This review branch does not replace published APKs.
+
+Phase 3 builds and host checks pass. Native acceptance is pending: the test emulator's system process/ActivityManager failed before instrumentation startup; physical phones were not tested.
