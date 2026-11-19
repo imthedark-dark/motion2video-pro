@@ -35,3 +35,6 @@ Appended Square 1080×1080 to all native/schema/UI size sets without shifting de
 
 ## 6c — render range
 Validated paired numeric source bounds, at least one frame, inside 1–300s configured/detected source duration. Requests persist optional bounds, suggestions preserve them, capture offsets only; output timestamps and full-range frame count remain unchanged. Browser playback seeks to start and records the selected span. Full suite (debug/unsigned release, UI/clock/YUV and all host/security checks) PASS, including 214 range/default/schema cases. Actual sample timing on phones remains pending.
+
+## 6d — estimates
+Added encoded-size estimate with container allowance, zero/unknown-safe native ETA and optional locally measured preflight timing (24 profiles). Labels explicitly call these estimates; source loading/audio/save can differ. Estimates never influence encoding or scheduling. Full debug/unsigned release and regression suite PASS, plus numerical unknown/completion/rate/large-size/audio-overhead checks and UI estimate visibility. No hardware performance claim.

@@ -57,3 +57,5 @@ Source/dependency audit found no app-owned telemetry client or upload endpoint. 
 Report concerns through the private process/status described in [SECURITY.md](SECURITY.md). Never put real private HTML, recordings, credentials or raw device logs in a public issue.
 
 Project settings / تنظیمات پروژه: up to 20 named configurations are saved in local WebView/browser storage; they contain output settings, not HTML, audio or online permission. Delete them with the project Delete button or clear application data. / حداکثر ۲۰ تنظیمات نام‌دار، فقط روی دستگاه ذخیره می‌شود؛ با دکمهٔ حذف پروژه یا پاک‌کردن دادهٔ برنامه قابل حذف است.
+
+Render-speed estimates store at most 24 numeric profile measurements locally (codec/size/fps/capture mode), with no HTML, filename, identifier or upload. / حداکثر ۲۴ اندازه‌گیری عددی سرعت رندر، بدون محتوا یا نام فایل، فقط روی دستگاه ذخیره می‌شود.

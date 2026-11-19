@@ -221,7 +221,7 @@ public final class StudioActivity extends MainActivity {
   if(phase.equals("complete")){
    File file=new File(s.optString("file"));if(!file.isFile()){emit("error","message","فایل موقت خروجی دیگر موجود نیست؛ دانلودهای من را بررسی کن.");return;}
    result=file;resultExt=s.optString("ext","mp4");resultMime=s.optString("mime","video/mp4");exportPath="/exports/"+id+"."+resultExt;
-   emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length(),"options",s.optJSONObject("options"));
+   emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length(),"options",s.optJSONObject("options"),"elapsedMs",s.optLong("elapsedMs"),"frames",s.optInt("total"));
    JSONObject item=s.optJSONObject("download");if(item!=null){savedSource=file.getAbsolutePath();savedDownload=item;emit("saved","item",item);}else if(s.has("warning"))emit("downloadError","message",s.optString("warning"));
    emitDownloads();
   }else if(phase.equals("cancelled"))emit("cancelled");else emit("error","message",s.optString("message","رندر متوقف شد."));

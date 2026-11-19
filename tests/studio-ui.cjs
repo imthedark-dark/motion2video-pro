@@ -14,6 +14,7 @@ await page.locator('#fileInput').setInputFiles({name:'large.html',mimeType:'text
 await page.locator('#fileInput').setInputFiles({name:'موشن.HTM',mimeType:'text/plain',buffer:Buffer.from('\ufeff<!doctype html><body>سلام العربية</body>')});await page.waitForFunction(()=>document.getElementById('code').value.includes('سلام العربية'));assert(!(await page.locator('#code').inputValue()).startsWith('\ufeff'));
 await page.locator('#presetButton').click();await page.waitForFunction(()=>MotionStudio.state().frameReady);
 assert(await page.evaluate(()=>{const el=document.getElementById('fps'),old=el.value;el.add(new Option('invalid','45'));el.value='45';try{config();return false}catch(_){return true}finally{el.remove(el.length-1);el.value=old}}),'non-enum FPS accepted');
+assert((await page.locator('#estimateText').innerText()).includes('MB'));
 // Range rejects outside duration and preserves explicit source offsets in native transport.
 await page.locator('#useRange').check();await page.locator('#rangeStart').fill('2');await page.locator('#rangeEnd').fill('30');await page.locator('#recordButton').click();assert(await page.locator('#message').isVisible());assert.equal(await page.evaluate(()=>MotionStudio.state().busy),false);
 await page.locator('#useRange').uncheck();

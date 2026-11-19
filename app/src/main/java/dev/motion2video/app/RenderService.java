@@ -56,6 +56,7 @@ public final class RenderService extends Service {
   try{
    JSONObject s=new JSONObject().put("phase",phase).put("done",done).put("message",message).put("elapsedMs",Math.max(0,System.currentTimeMillis()-began));
    if(request!=null)s.put("id",request.id).put("total",request.frames).put("ext",request.ext).put("mime",request.mime).put("options",request.options());
+   if(request!=null)s.put("estimatedBytes",RenderEstimates.bytes(request.frames,request.fps,request.bitrate,false)).put("remainingMs",phase.equals("rendering")?RenderEstimates.remainingMillis(done,request.frames,s.optLong("elapsedMs")):-1);
    if(file!=null)s.put("file",file.getAbsolutePath()).put("size",file.length());if(download!=null)s.put("download",download);if(warning!=null)s.put("warning",warning);if(timeoutStopping)s.put("cleanupPending",true);
    final String json=s.toString();stateJson=json;long now=System.currentTimeMillis();boolean active=busy(s);
    if(!active||now-lastPersist>1000){getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",json).apply();lastPersist=now;}

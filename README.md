@@ -199,3 +199,5 @@ Registered exports now have a Share action using the narrow read-only FileProvid
 Explicit Story/Reels, YouTube and Square size presets are available. Up to 20 named project settings are stored on this device; animation HTML, audio files and online permission are excluded. Defaults remain 1280×720, 60 FPS, 16 Mbps, H.264.
 
 Optional source start/end ranges are validated against the configured/detected animation duration. Full-range export is unchanged; selected ranges keep output PTS at zero and round frame count at the selected fps.
+
+The studio estimates encoded size before rendering and remaining frame-render time from measured progress. Previous same-profile render speed is retained locally for a rough preflight estimate. Estimates are not guarantees and exclude unpredictable loading/audio/save delays.
