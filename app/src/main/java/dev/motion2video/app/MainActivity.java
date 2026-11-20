@@ -121,7 +121,27 @@ public class MainActivity extends Activity {
  protected void showTroubleshooting(){
   new AlertDialog.Builder(this).setTitle("عیب‌یابی موشن").setMessage(
    "۱. Android System WebView و Chrome را به‌روز کن.\n۲. موشن را با ذرات و بافت‌های کوچک‌تر امتحان کن.\n۳. حالت نرم‌افزاری برای Canvas دوبعدی است؛ بعضی موشن‌های WebGL در این حالت نمایش داده نمی‌شوند.\n۴. اگر فایل منبع بیرونی دارد، نسخهٔ مستقل آن را بگیر. Worker در فایل واردشده پشتیبانی نمی‌شود.\n\nWebView: "+WebViewSecurity.provider())
+   .setNeutralButton("گزارش مشکل",(d,w)->showProblemReport())
    .setPositiveButton("بازگشت",null).show();
+ }
+ private void showProblemReport(){
+  new AlertDialog.Builder(this)
+   .setTitle("گزارش مشکل")
+   .setMessage("نسخهٔ برنامه، اندروید و WebView و مراحل تکرار مشکل را با یک مثال ساختگی بنویس. فایل شخصی، رمز، کلید یا لاگ کامل را نفرست."
+    +"\n\nبرای مشکل امنیتی، فرم خصوصی گیت‌هاب را باز کن. جزئیات حساس را هرگز در issue عمومی ننویس."
+    +"\n\nاگر فرم در دسترس نبود، فقط درخواست فعال‌سازی مسیر خصوصی کن و تا آن زمان جزئیات را نزد خود نگه دار.")
+   .setPositiveButton("باز کردن فرم خصوصی",(d,w)->openPrivateReport())
+   .setNegativeButton("بستن",null).show();
+ }
+ private void openPrivateReport(){
+  Uri form=Uri.parse("https://github.com/imthedark-dark/motion2video-pro/security/advisories/new");
+  try{
+   startActivity(new Intent(Intent.ACTION_VIEW,form));
+  }catch(ActivityNotFoundException | SecurityException unavailable){
+   new AlertDialog.Builder(this).setTitle("فرم باز نشد")
+    .setMessage("در مرورگر به مخزن imthedark-dark/motion2video-pro در GitHub برو. در بخش Security گزینهٔ Report a vulnerability را بزن. اگر گزینه را ندیدی، جزئیات را خصوصی نگه دار.")
+    .setPositiveButton("بستن",null).show();
+  }
  }
  protected void showAbout(){
   new AlertDialog.Builder(this).setTitle("دربارهٔ Motion2Video Pro").setMessage("Android System WebView\n"+WebViewSecurity.provider()).setPositiveButton("بازگشت",null).show();
