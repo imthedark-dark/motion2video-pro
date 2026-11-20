@@ -56,12 +56,12 @@ jobs:
           mkdir -p build/debug-artifact
           cp dist/*-Dark.apk build/debug-artifact/
           python3 tools/checksums.py generate build/debug-artifact
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Motion2Video-Dark-debug
           path: build/debug-artifact/
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dependency-audit-inputs
           path: build/security-dependencies/
@@ -98,7 +98,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/odc-data
           key: odc-linux-13-v1-${{ github.run_id }}-${{ github.run_attempt }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: dependency-check-report
