@@ -53,11 +53,44 @@ jobs:
       - run: python3 tools/verify_release.py --directory dist
       - name: Resolve actual native dependencies for OWASP scan
         run: ./gradlew --no-daemon :app:copySecurityDependencies
-      - name: Prepare contributor artifact with its own checksum inventory
+      - name: Stage the verified debug APK
         run: |
           mkdir -p build/debug-artifact
           cp dist/*-Dark.apk build/debug-artifact/
-          python3 tools/checksums.py generate build/debug-artifact
+      - name: Sign contributor artifact with the test identity when configured
+        # Same-repository PR code is trusted here to the same extent as a branch push.
+        # No signing secret is passed to fork PRs or pull_request_target events.
+        env:
+          TEST_KEYSTORE_B64: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.M2V_TEST_KEYSTORE_B64 || '' }}
+          TEST_STORE_PASSWORD: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.M2V_TEST_STORE_PASSWORD || '' }}
+        shell: bash
+        run: |
+          set +x
+          set -euo pipefail
+          apks=(build/debug-artifact/*-Dark.apk)
+          [[ ${#apks[@]} == 1 && -f "${apks[0]}" ]]
+          apk=${apks[0]}
+          tools="$ANDROID_HOME/build-tools/35.0.0"
+          if [[ -n "$TEST_KEYSTORE_B64" && -n "$TEST_STORE_PASSWORD" ]]; then
+            # Only ever replace the signer on the staged, debuggable copy.
+            "$tools/aapt" dump badging "$apk" | grep -Fx 'application-debuggable' >/dev/null
+            umask 077
+            keyfile=$(mktemp "$RUNNER_TEMP/m2v-test.XXXXXXXX")
+            trap 'rm -f -- "$keyfile"' EXIT
+            printf '%s' "$TEST_KEYSTORE_B64" | base64 --decode > "$keyfile"
+            unset TEST_KEYSTORE_B64
+            "$tools/apksigner" sign --ks "$keyfile" --ks-key-alias m2v-test \
+              --ks-pass env:TEST_STORE_PASSWORD --key-pass env:TEST_STORE_PASSWORD \
+              --v4-signing-enabled false "$apk"
+            mode='Stable test signer. Compatible test installs can update in place.'
+          else
+            mode='Fresh runner debug signer. Test secrets were unavailable or incomplete. Its signature may differ from previous test builds.'
+          fi
+          fingerprint=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          [[ "$fingerprint" =~ ^[a-fA-F0-9]{64}$ ]]
+          printf '%s\n\nPublic signing certificate SHA-256: `%s`\n' "$mode" "$fingerprint" >> "$GITHUB_STEP_SUMMARY"
+      - name: Checksum the final contributor artifact
+        run: python3 tools/checksums.py generate build/debug-artifact
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Motion2Video-Dark-debug

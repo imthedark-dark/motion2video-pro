@@ -109,3 +109,35 @@ Feature builds remain unreleased debug/unsigned artifacts. Before owner-controll
 ### Fresh-checkout contributor builds
 
 An explicit `M2V_DEBUG_KEYSTORE` must name an existing development keystore. Otherwise an existing ignored `build/debug.jks` is reused. On a fresh checkout, Android Gradle Plugin uses its standard automatically generated debug keystore. Contributor debug builds require no production secrets. Production signing remains an explicit, separate configuration.
+
+## Stable signing for GitHub Actions test APKs
+
+The `Motion2Video-Dark-debug` Actions artifact can use a dedicated test certificate. Android can then update a previous test installation in place when the application ID and signer match and the version code is compatible. The first switch from an older random certificate normally requires one uninstall, which erases that installation's private data. Export anything you need first. Keep using artifacts with the same certificate fingerprint afterwards.
+
+### Set up the test identity once
+
+1. On your own computer, use JDK 17's `keytool` to create a **new test-only** PKCS12 keystore outside the checkout. The following commands run in Bash. Choose a strong password when prompted and keep it and a backup of the keystore in a private location. The fixed alias is `m2v-test`. PKCS12 uses the same password for the store and the key.
+
+   ```bash
+   umask 077
+   mkdir -p "$HOME/.local/share/motion2video-test"
+   key="$HOME/.local/share/motion2video-test/test-signing.p12"
+   keytool -genkeypair -storetype PKCS12 -keystore "$key" -alias m2v-test \
+     -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=Motion2Video CI Test Only"
+   ```
+
+2. In the repository, open **Settings → Secrets and variables → Actions → New repository secret**. Add `M2V_TEST_STORE_PASSWORD` with the password you chose. Add `M2V_TEST_KEYSTORE_B64` with the complete single-line Base64 encoding of the keystore. To encode it and set that second secret without displaying or saving the encoding, use the authenticated GitHub CLI in the same shell:
+
+   ```bash
+   openssl base64 -A -in "$key" | gh secret set M2V_TEST_KEYSTORE_B64 --repo imthedark-dark/motion2video-pro
+   ```
+
+   For web-only setup, copy the encoding directly to the clipboard instead (macOS: `openssl base64 -A -in "$key" | pbcopy`; Linux with Wayland: `openssl base64 -A -in "$key" | wl-copy`). Paste it as the value of `M2V_TEST_KEYSTORE_B64` and clear the clipboard afterwards. Base64 contains the private keystore.
+
+3. Run **Build and audit Android APK** on a branch containing this workflow. The build summary identifies the signing mode and gives the public certificate SHA-256. Compare it with the SHA-256 printed by `keytool -list -v -storetype PKCS12 -keystore "$key" -alias m2v-test`. Download the debug artifact and check that future builds show the same fingerprint. With a matching install, `adb install -r <debug-apk>` preserves app data.
+
+### CI and production boundaries
+
+On pushes, manual or scheduled runs and same-repository PRs, CI can re-sign only the staged debug artifact. The keystore is decoded in runner temporary storage and removed when the signing step exits. The checksum inventory covers the final signed bytes. Fork PRs receive empty signing inputs. If either secret is unavailable, the job retains the normal runner-generated debug signature and records that fallback in the summary. A configured but invalid keystore, alias or password fails the step.
+
+The test key authorizes updates to **debug test installations**. The maintainer's production key authorizes updates to public releases and stays in the separate release-signing process. Keep their keys and passwords independent. Rotating or losing the test key generally requires reinstalling test builds; it has no effect on production signing.
