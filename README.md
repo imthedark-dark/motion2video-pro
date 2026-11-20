@@ -19,6 +19,20 @@
 
 </div>
 
+## Screenshots and demo
+
+<details><summary>Open the mobile studio screenshot</summary>
+
+![Persian studio preview, render controls and output settings](docs/assets/studio-mobile.png)
+
+</details>
+
+Captured from the Phase 7 HTML studio in Chromium at a 393 × 852 viewport. Native Android dialogs are outside this screenshot. **Demo GIF:** reserved for a verified phone recording.
+
+### Limitations
+
+The public APK remains [v1.4.1](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1). The merged hardening, optional audio, font cache and Phase 7 UI have no new production release. The owner confirmed the earlier font regression fix and font workflow on Xiaomi. Full physical coverage, including TalkBack and 200% Android font scaling, is pending. Hardware codecs and 1080p60 depend on the encoder and device load. Audio sync depends on the decoder/encoder pair. WebGL capture is experimental. [Physical-device test matrix](docs/VALIDATION.md#physical-device-matrix)
+
 ---
 
 <div dir="ltr" lang="en">
@@ -184,7 +198,7 @@ Phase 3 builds and host checks pass. Native acceptance is pending: the test emul
 
 Release signing is explicit (`python3 build.py --release --sign`) and reads environment settings or ignored local properties; debug and unsigned contributor builds remain available. APK versioned filenames come from Gradle output metadata. APK binaries are removed from this branch; existing tags/Release assets stay unchanged. Actions are pinned to full SHAs with read-only permissions by default (only an explicit guarded publication job can write Releases), Dependabot covers npm/Gradle/Actions, CI audits npm and runs isolated OWASP Dependency-Check, and schema-2 bundled version/hash/license checks reject drift. See [release process](docs/RELEASE.md), [security reporting status](SECURITY.md) and [license concerns](docs/LICENSING.md). No production release or completed native acceptance is implied.
 
-Remaining setup: private vulnerability reporting is still disabled after GitHub403; an owner must enable it. The full OWASP scan is blocked by NVD/CISA feed access, so no clean dependency-scan result is claimed.
+Private vulnerability reporting is enabled. Use the private form in [SECURITY.md](SECURITY.md). Check the Actions run for the commit being tested for the OWASP result.
 
 ### Phase 5 privacy review
 

@@ -13,7 +13,7 @@ Evidence: [`verified-background-360p.mp4`](../tests/fixtures/verified-background
 | Platform / path | Evidence | Status |
 | --- | --- | --- |
 | Android 11 / API 30 emulator, H.264 software-capture path, 360p30 | Background, MediaStore, Activity removal, restore, cancel, decoded MP4 | Tested |
-| Physical Android phones, any manufacturer | No reported device acceptance run | **Not tested; no certified phone list** |
+| Physical Android phones, any manufacturer | No complete version-by-version acceptance run | Partial owner-reported Xiaomi font checks; no certified phone list |
 | Android 8/9 storage permission | Implemented, no device acceptance run | Not tested |
 | Android 13+ notification prompt | Implemented, no device acceptance run | Not tested |
 | Android 15+ foreground-service timeout | Implemented, no device acceptance run | Not tested |
@@ -23,7 +23,7 @@ Evidence: [`verified-background-360p.mp4`](../tests/fixtures/verified-background
 | Animation clock: Web Animations and legacy CSS fallback | `tests/motion-clock.cjs` | Passed |
 | 72 YUV sizes/strides/offsets/shared-plane cases | `tests/java/Yuv420ConverterTest.java` | Byte-identical to previous converter |
 
-No microphone/audio track, ProRes/MOV alpha output or automatic recovery after force stop is implemented. Home/Activity closure is different from force stop or process termination. Battery policies can interrupt work. The desktop JVM conversion benchmark in [PERFORMANCE.md](PERFORMANCE.md) is not a whole-export/device speed claim.
+The historical release tested above did not include an audio track. Current source supports an optional attached audio file. No microphone capture, ProRes/MOV alpha output or automatic recovery after force stop is implemented. Home/Activity closure is different from force stop or process termination. Battery policies can interrupt work. The desktop JVM conversion benchmark in [PERFORMANCE.md](PERFORMANCE.md) is not a whole-export/device speed claim.
 
 Version 1.4.1 packages the same rendering implementation with license notices and a version increment. Its APK/asset integrity, signature and source build are checked separately. Comparing the APKs found byte-identical `classes.dex` and `assets/studio.html`, with the new license files present; the recorded native rendering results above are from v1.4.0, not a new device acceptance run of v1.4.1.
 
@@ -115,3 +115,35 @@ Phase 6 queue acceptance (pending physical devices): fresh test install, run dev
 - Cancel a throttled download and try a disconnected device. Verify fallback playback, responsive controls and no corrupt cache entry. Repeat with the feature switched off.
 - Remember an approved family, confirm a new family still asks, and confirm that an automatic draft reload does not start a download. Delete the family in Fonts and check that the remembered approval is removed.
 - Try clearing the cache during preview and during a long export or queue job. Verify that an active render is protected, the settings state updates after deletion, and subsequent previews fall back. Check scope isolation, any differences in installed-font match and minified builds on API 26–35. Compare a device capture of Google-bound requests against [FONTS.md](FONTS.md).
+
+## Physical-device matrix
+
+Use a test profile, synthetic HTML/audio and an APK from the exact branch/commit. Record the APK SHA-256, Android/API, model, WebView provider/version and codec settings. Keep personal device identifiers out of shared notes. For each group record pass, fail (with step), not run, or not applicable.
+
+| OS (API) | Model / WebView / APK SHA | Install / silent / range | Audio / sync | Queue / lifecycle | Permissions / share / storage | Fonts / network | Accessibility / private form |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 8.0 / 8.1 (26/27) | | | | | | | |
+| 9 (28) | | | | | | | |
+| 10 (29) | | | | | | | |
+| 11 (30) | | | | | | | |
+| 12 / 12L (31/32) | | | | | | | |
+| 13 (33) | | | | | | | |
+| 14 (34) | | | | | | | |
+| 15 (35) | | | | | | | |
+
+1. Install and open the app. Render a known short animation with default settings. Verify dimensions, fps, duration and silence with a player or ffprobe. Export a start/end range and inspect the first and last frames.
+2. Attach a synthetic clap track with a visible marker. Check the beginning, middle and end for A/V drift. Repeat with trim and a fade, then detach and confirm silent export.
+3. Queue three files. Cancel one waiting and one active job; verify the next valid job runs. Press Home and return, rotate during preview and export, then separately force stop the test installation. Reopen and check the queue status, explicit resume and absence of partial outputs.
+4. Deny storage on Android 8/9 and retry saving after granting it. On Android 10+ check Downloads without legacy permission. On 13+ deny notifications and check in-app progress/cancel. Test sharing a completed output, low free space on a disposable test volume, and OEM battery limits on a background job.
+5. Run the Phase 9 font checks above with first consent, cancel, offline reuse after reopening, delete one and clear all. On a controlled network observe destinations and timing. With online resources off, imported code should make no external requests. With explicit font consent look for the native Google stylesheet and font hosts. Distinguish system/WebView traffic; do not submit raw captures.
+6. Set Android text size to 200% where supported, enable TalkBack and disable animations. Navigate the studio, editor, queue, FAQ, consent and Fonts settings by swipe. Verify spoken label, focus order/return, scroll reachability, status announcements, no clipped text, and all actions reachable in portrait and landscape. Confirm the animation itself still moves. Open Troubleshooting → Report a problem → private form and verify the GitHub repository and private advisory form. Submit nothing during testing.
+
+Collect minimal diagnostics on a test device (use the debug build for the app's diagnostic tag):
+
+```sh
+adb shell getprop ro.build.version.sdk
+adb shell settings get system font_scale
+adb logcat -d -s Motion2VideoWebView:D '*:S'
+```
+
+Note the WebView version from About, renderer crash/kill category and CSP category if present. Redact identifiers and share only the relevant reviewed lines. Do not attach private animations, paths, account details, tokens, full logcat or packet captures.
