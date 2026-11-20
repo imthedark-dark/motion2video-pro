@@ -60,7 +60,7 @@ dependencies {
     implementation("androidx.core:core:1.13.1")
     // Already present at runtime via lifecycle-runtime; explicit compile visibility
     // lets lint resolve the receiver whose exported=false override we retain.
-    implementation("androidx.profileinstaller:profileinstaller:1.3.0")
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 }
 
 val syncStudio by tasks.registering(Copy::class) {
