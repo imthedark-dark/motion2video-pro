@@ -2,7 +2,6 @@ package dev.motion2video.app;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
-import android.os.Build;
 import android.content.pm.PackageInfo;
 import android.webkit.*;
 
@@ -49,7 +48,7 @@ final class WebViewSecurity {
   s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
   s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSupportMultipleWindows(false);
   s.setDomStorageEnabled(trusted);s.setMediaPlaybackRequiresUserGesture(true);
-  if(Build.VERSION.SDK_INT>=26)s.setSafeBrowsingEnabled(true);
+  s.setSafeBrowsingEnabled(true);
   // Service-worker fetches do not use a page's WebViewClient. Workers are unsupported here.
   ServiceWorkerController workers=ServiceWorkerController.getInstance();
   ServiceWorkerWebSettings workerSettings=workers.getServiceWorkerWebSettings();

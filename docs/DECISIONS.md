@@ -83,3 +83,19 @@ The native Android workflow can prompt for statically referenced Google families
 Font aliases are reconstructed from validated descriptors and private cache IDs. Each read validates SHA-256. No original response CSS or remote URL is stored. Active render stages retain a scope and cache deletion is refused while they are pinned. Size and entry limits reject further downloads when full so previously saved families stay in place. A checked checkbox records approvals for successfully stored families. Clear-cache actions remove their associated approvals.
 
 Before consent, the size label uses the local cap rather than a server request. We do not infer a font's license from the name, CSS or hosting domain. [Fonts](FONTS.md)
+
+## Phase 7 accessibility and lint
+
+The trusted studio follows Android text size and reduced motion. The imported stage retains its own clock and WebView settings. The native font dialogs use a scrollable action list so long family names and large text do not compete with three horizontal actions. Public error guidance accepts exact reviewed messages, including statuses saved by older builds.
+
+Push/PR CI runs full debug Android lint. The Gradle min/target SDK remain authoritative after removing the redundant manifest declaration. Safe Browsing is enabled unconditionally at the API 26 floor. No lint baseline or global suppression was added. The following warnings remain visible:
+
+| Check | Decision |
+| --- | --- |
+| SetTextI18n | Existing Persian UI interpolates counts, progress and family names. Move formatting to resources in the separate language phase. |
+| SetJavaScriptEnabled | The animation, clock and studio need scripts. Their WebViews remain isolated, with app-owned request interception, CSP and restricted communication. |
+| InlinedApi | Notification permission is gated by the platform policy before the API 33 permission request. Keep compatibility checks covered by platform tests. |
+| GradleDependency | A newer ProfileInstaller patch should be evaluated as a dependency update with the runtime graph and shrinker checks. |
+| DiscouragedApi | Changing fixed-rate watchdog scheduling could affect timeout and render behavior. Keep it for this UI phase. |
+| DataExtractionRules | Backup remains disabled. New OEM-specific transfer rules require a separate migration/device review. |
+| RtlHardcoded | The code editor intentionally displays HTML left-to-right inside the Persian RTL UI. |
