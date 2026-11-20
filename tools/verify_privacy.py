@@ -10,6 +10,11 @@ for file in java.glob('*.java'):
   assert text.count('android.util.Log.d(')==1 and 'if(!debug(context))return;' in text
   assert 'client.first+" cspDirective="+client.directive' in text
   text=text.replace('android.util.Log.d("Motion2VideoWebView"', 'approvedDebugEvent("Motion2VideoWebView"')
+ if file.name=='StartupProfile.java':
+  assert 'if(!enabled)return;' in text and 'ApplicationInfo.FLAG_DEBUGGABLE' in text
+  sink='Log.d("M2VStartup",event.name()+" elapsedMs="+elapsed+" main="+ui+" cpuMs="+SystemClock.currentThreadTimeMillis()'
+  assert sink in text and '+(event==Event.READY?" maxQueueDelayMs="+maxDelay:""));' in text
+  text=text.replace(sink,'approvedStartupTiming(')
  if re.search(r'\bLog\.[vdiewtf]\s*\(|printStackTrace\s*\(|System\.(out|err)\b',text):raise ValueError('Unexpected app diagnostic sink: '+file.name)
  if file.name!='PublicErrors.java' and re.search(r'\.get(?:Localized)?Message\s*\(',text):raise ValueError('Raw exception output bypasses privacy policy: '+file.name)
  if file.name in ('FontDiscovery.java','FontDownload.java'):

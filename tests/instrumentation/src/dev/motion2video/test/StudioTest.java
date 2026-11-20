@@ -6,7 +6,7 @@ public class StudioTest extends Instrumentation {
  void note(String value){Bundle b=new Bundle();b.putString("progress",value);sendStatus(1,b);}
  @Override public void onCreate(Bundle b){super.onCreate(b);start();}
  @Override public void onStart(){Bundle out=new Bundle();try{
-  Activity a=startActivitySync(new Intent().setClassName("dev.motion2video.app","dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+  Activity a=startActivitySync(new Intent().setClassName("dev.motion2video.app","dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));StudioWindow.await(this,a);
   WebView studio=(WebView)field(a,"studio");long deadline=System.currentTimeMillis()+240000;
   while(!"true".equals(js(studio,"!!(window.MotionStudio&&MotionStudio.state().native)"))){if(System.currentTimeMillis()>deadline)throw new Exception("Native port failed to connect");note("waiting for studio bridge");Thread.sleep(1000);}
   note("native bridge connected");WebView stage=(WebView)field(a,"stage");note("engine="+js(stage,"JSON.stringify({ua:navigator.userAgent,documentAnimations:typeof document.getAnimations,elementAnimations:typeof document.body.getAnimations})"));

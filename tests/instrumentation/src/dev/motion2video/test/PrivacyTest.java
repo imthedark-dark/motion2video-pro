@@ -7,7 +7,7 @@ public final class PrivacyTest extends Instrumentation {
  @Override public void onStart(){Bundle out=new Bundle();try{
   Context c=getTargetContext();ApplicationInfo info=c.getPackageManager().getApplicationInfo(c.getPackageName(),PackageManager.GET_META_DATA);
   if(!info.metaData.getBoolean("android.webkit.WebView.MetricsOptOut",false))throw new Exception("Missing metrics opt-out");
-  Activity activity=startActivitySync(new Intent().setClassName(c,"dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+  Activity activity=startActivitySync(new Intent().setClassName(c,"dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));StudioWindow.await(this,activity);
   WebView stage=(WebView)field(activity,"stage"),studio=(WebView)field(activity,"studio");
   runOnMainSync(()->{for(WebView web:new WebView[]{stage,studio}){
    WebChromeClient client=web.getWebChromeClient();if(client==null||!client.onConsoleMessage(new ConsoleMessage("PRIVACY_FIXTURE_ONLY <html>synthetic</html>","file:///private-fixture-only",1,ConsoleMessage.MessageLevel.ERROR)))throw new AssertionError("Console message was not handled");

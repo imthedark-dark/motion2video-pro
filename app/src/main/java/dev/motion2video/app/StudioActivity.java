@@ -34,18 +34,94 @@ public final class StudioActivity extends MainActivity {
  private boolean bridgeReady,studioFailed,onlinePrompt;
  private String presentedJob="";
  private RenderRequest pendingRender;
- private JSONObject advancedOptions=new JSONObject();
+ private JSONObject studioOptions;
+ private TextView loading;
+ private StartupProfile startup;
+ private final java.util.concurrent.ExecutorService startupWorker=java.util.concurrent.Executors.newSingleThreadExecutor();
+ private String restoringRender;
+ private boolean permissionReturned,reportPending;
+ private String pickedBeforeReady;
+ private String fontCss,clockScript;
  private JSONObject pendingQueueOptions;private boolean pendingQueueStart;
  private final RenderService.Listener renderListener=this::renderState;
 
- @Override public void onCreate(Bundle state){
-  super.onCreate(state);
+ @Override protected void createContent(Bundle state){
+  startup=new StartupProfile(this);
+  startup.mark(StartupProfile.Event.ACTIVITY);
+  studioRoot=new FrameLayout(this);
+  studioRoot.setBackgroundColor(Color.rgb(7,7,9));
+  loading=text("در حال آماده‌سازی استودیو…",18);
+  loading.setGravity(Gravity.CENTER);
+  loading.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+  studioRoot.addView(loading,new FrameLayout.LayoutParams(-1,-1));
+  setContentView(studioRoot);
+  loading.setBackgroundColor(Color.rgb(7,7,9));
+  permissionReturned=state!=null&&state.getBoolean("permissionReturned");
+  restoringRender=state==null?null:state.getString("pendingRender");
+  studioRoot.getViewTreeObserver().addOnDrawListener(new ViewTreeObserver.OnDrawListener(){
+   private boolean drawn;
+   @Override public void onDraw(){
+    if(drawn)return;
+    drawn=true;
+    studioRoot.post(()->{
+     studioRoot.getViewTreeObserver().removeOnDrawListener(this);
+     if(closed||isFinishing())return;
+     startup.mark(StartupProfile.Event.FIRST_DRAW);
+     prepareStudio(restoringRender);
+    });
+   }
+  });
+ }
+ private void prepareStudio(String id){
+  startupWorker.execute(()->{
+   startup.mark(StartupProfile.Event.PROVIDER_BEGIN);
+   // Public API since P. Load the provider before the UI thread asks for it.
+   try{
+    if(Build.VERSION.SDK_INT>=28)WebView.getWebViewClassLoader();
+   }catch(RuntimeException | LinkageError unavailable){
+    runOnUiThread(this::showStartupError);
+    return;
+   }
+   startup.mark(StartupProfile.Event.PROVIDER_END);
+   softwarePreview(); // Await the preferences XML read off the main thread.
+   String css=super.asset("fonts.css"),clock=super.asset("motion-clock.js");
+   RenderRequest restored=null;
+   if(id!=null)try{restored=RenderRequest.read(this,id);}catch(Exception ignored){}
+   final RenderRequest request=restored;
+   startup.mark(StartupProfile.Event.INPUTS_READY);
+   runOnUiThread(()->{
+    if(closed||isFinishing())return;
+    fontCss=css;clockScript=clock;pendingRender=request;restoringRender=null;
+    startupStep(this::initializeStudio);
+   });
+  });
+ }
+ @Override protected String asset(String name){
+  if(name.equals("fonts.css")&&fontCss!=null)return fontCss;
+  if(name.equals("motion-clock.js")&&clockScript!=null)return clockScript;
+  return super.asset(name);
+ }
+ private void startupStep(Runnable work){
+  if(closed||isFinishing()||studioFailed||stageFailed)return;
+  try{work.run();}catch(RuntimeException | LinkageError unavailable){showStartupError();}
+ }
+ private void showStartupError(){
+  if(closed||isFinishing())return;
+  startup.stop();
+  loading.setText("استودیو باز نشد. Android System WebView را به‌روز کن و برای تلاش دوباره اینجا بزن.");
+  loading.bringToFront();
+  loading.setOnClickListener(v->recreate());
+ }
+ private void initializeStudio(){
   fontWorkflow=new FontWorkflow(this,()->working||RenderService.busy(RenderService.latest(this)));
   downloads=new DownloadRepository(this);
-  if(state!=null&&state.getString("pendingRender")!=null)try{pendingRender=RenderRequest.read(this,state.getString("pendingRender"));}catch(Exception ignored){}
-  ((ViewGroup)stage.getParent()).removeView(stage);
-  studioRoot=new FrameLayout(this);studioRoot.setBackgroundColor(Color.rgb(7,7,9));
-  studio=new WebView(this);studio.setBackgroundColor(Color.rgb(7,7,9));
+  startup.mark(StartupProfile.Event.STUDIO_BEGIN);
+  studio=new WebView(this);
+  startup.mark(StartupProfile.Event.STUDIO_CONSTRUCTED);
+  studioRoot.post(()->startupStep(this::configureStudio));
+ }
+ private void configureStudio(){
+  studio.setBackgroundColor(Color.rgb(7,7,9));
   WebSettings settings=studio.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);
   settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
   WebViewSecurity.configure(studio,this,true);WebViewSecurity.network(studio,false);
@@ -66,7 +142,7 @@ public final class StudioActivity extends MainActivity {
     return StageAssets.blocked();
    }
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
-   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){WebViewSecurity.rendererExit(v,StudioActivity.this,detail,false,true);studioFailed=true;bridgeReady=false;if(pendingRender!=null){try{RenderRequest.file(StudioActivity.this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;}if(port!=null){port.close();port=null;}cancelRenderAfterRendererExit();if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();showRendererRecovery(WebViewSecurity.RECOVERY_HINT);return true;}
+   @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){WebViewSecurity.rendererExit(v,StudioActivity.this,detail,false,true);startup.stop();studioFailed=true;bridgeReady=false;if(pendingRender!=null){try{RenderRequest.file(StudioActivity.this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;}if(port!=null){port.close();port=null;}cancelRenderAfterRendererExit();if(v.getParent() instanceof ViewGroup)((ViewGroup)v.getParent()).removeView(v);v.destroy();showRendererRecovery(WebViewSecurity.RECOVERY_HINT);return true;}
    @Override public void onPageStarted(WebView v,String url,Bitmap icon){if(url.equals(ORIGIN+"/index.html")){bridgeReady=false;if(port!=null){port.close();port=null;}}}
    @Override public void onPageFinished(WebView view,String url){
     if(!url.equals(ORIGIN+"/index.html"))return;
@@ -77,15 +153,23 @@ public final class StudioActivity extends MainActivity {
     view.postWebMessage(new WebMessage("motion-native-port-v1",new WebMessagePort[]{pair[1]}),Uri.parse(ORIGIN));
    }
   });
-  studioRoot.addView(studio,new FrameLayout.LayoutParams(-1,-1));
+  studioRoot.addView(studio,0,new FrameLayout.LayoutParams(-1,-1));
+  studioRoot.post(()->startupStep(this::attachStage));
+ }
+ private void attachStage(){
+  startup.mark(StartupProfile.Event.STAGE_BEGIN);
+  createStage();
+  startup.mark(StartupProfile.Event.STAGE_READY);
   stage.setVisibility(View.INVISIBLE);studioRoot.addView(stage,new FrameLayout.LayoutParams(1,1));
-  setContentView(studioRoot);
+  loading.bringToFront();
   if(Build.VERSION.SDK_INT>=30){
    getWindow().setDecorFitsSystemWindows(false);
    studioRoot.setOnApplyWindowInsetsListener((v,i)->{android.graphics.Insets a=i.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());studioRoot.setPadding(a.left,a.top,a.right,a.bottom);return i;});
    studioRoot.requestApplyInsets();
   }
   studio.loadUrl(ORIGIN+"/index.html");
+  startup.mark(StartupProfile.Event.LOAD_QUEUED);
+  if(permissionReturned&&pendingRender!=null)beginRender();
  }
  private WebResourceResponse assetResponse(String mime,String asset)throws IOException{
   WebResourceResponse r=new WebResourceResponse(mime,mime.startsWith("font/")?null:"UTF-8",getAssets().open(asset));
@@ -112,7 +196,18 @@ public final class StudioActivity extends MainActivity {
   if(closed||studioFailed||raw==null||raw.length()>ImportPolicy.MAX_JSON_BYTES)return;
   try{
    JSONObject m=new JSONObject(raw);String type=BridgeValidation.command(m);
-   if(type.equals("hello")){bridgeReady=true;JSONObject state=RenderService.latest(this);working=RenderService.busy(state);emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed,"software",softwarePreview());emitDownloads();renderState(state);return;}
+   if(type.equals("hello")){
+    bridgeReady=true;
+    boolean first=loading!=null;
+    if(first){studioRoot.removeView(loading);loading=null;startup.mark(StartupProfile.Event.BRIDGE);}
+    JSONObject state=RenderService.latest(this);
+    working=RenderService.busy(state);
+    emit("connected","rendering",working,"onlineResources",onlineResourcesAllowed,"software",softwarePreview());
+    emitDownloads();renderState(state);
+    if(pickedBeforeReady!=null){String html=pickedBeforeReady;pickedBeforeReady=null;acceptPickedHtml(html);}
+    if(first)startup.awaitControls(studio);
+    return;
+   }
    if(type.equals("fontSettings")){fontWorkflow.openSettings();return;}
    if(type.equals("about")){showAbout();return;}
    if(type.equals("troubleshooting")){showTroubleshooting();return;}
@@ -123,7 +218,17 @@ public final class StudioActivity extends MainActivity {
       dialog.dismiss();
       setSoftwarePreview(choice==1);
       emit("compatibility","software",softwarePreview());
-      if(stageFailed)recreate();else preview();
+      if(stageFailed)recreate();
+      else if(!savedCode.isEmpty()){
+       String html=savedCode;
+       int token=generation;
+       startupWorker.execute(()->{
+        FontCache.Scope scope=AppFonts.scope(this,FontDiscovery.scan(html),false);
+        runOnUiThread(()->{
+         if(!closed&&!working&&!stageFailed&&token==generation&&html.equals(savedCode))preview(scope,html);
+        });
+       });
+      }
      }).setNegativeButton("لغو",null).show();
     return;
    }
@@ -137,7 +242,7 @@ public final class StudioActivity extends MainActivity {
    if(type.equals("downloads")){emitDownloads();return;}
    if(type.equals("layout")){layout(m);return;}
    if(type.equals("cancel")){if(fontRenderPreparing){fontWorkflow.cancelPending();return;}if(pendingRender!=null){try{RenderRequest.file(this,pendingRender.id).delete();}catch(Exception ignored){}pendingRender=null;working=false;emit("cancelled");}else RenderService.cancel(this);return;}
-   if(type.equals("capabilities")){stage.setVisibility(View.INVISIBLE);emit("capabilities","text",CodecSupport.report());return;}
+   if(type.equals("capabilities")){stage.setVisibility(View.INVISIBLE);reportCapabilities();return;}
    if(type.equals("openDownloads")||type.equals("openDownload")||type.equals("shareDownload")||type.equals("save")){
     if(working||saving){emit("downloadError","message","رندر یا ذخیره در حال اجراست؛ کمی صبر کن.");return;}
     try{if(type.equals("openDownloads"))openDownloads();else if(type.equals("openDownload"))openDownload(m.getString("uri"));else if(type.equals("shareDownload"))startActivity(downloads.shareIntent(m.getString("uri")));else saveCurrent();}catch(Exception e){emit("downloadError","message",PublicErrors.message(e));}return;
@@ -153,7 +258,7 @@ public final class StudioActivity extends MainActivity {
     boolean explicit=exportRequested||html.equals(nextPickedFontHtml);
     nextPickedFontHtml=null;
     configure(m.getJSONObject("options"));
-    editor.setText(html);
+    savedCode=html;
     fontRenderPreparing=exportRequested;
     if(exportRequested){
      working=true;
@@ -162,7 +267,7 @@ public final class StudioActivity extends MainActivity {
     fontWorkflow.resolve(()->FontDiscovery.scan(html),explicit,this::fontSummary,scope->{
      fontRenderPreparing=false;
      if(exportRequested){working=false;export();}
-     else if(!working&&!stageFailed)preview(scope);
+     else if(!working&&!stageFailed)preview(scope,html);
     },()->{
      fontRenderPreparing=false;
      if(exportRequested){working=false;emit("cancelled");}
@@ -176,13 +281,15 @@ public final class StudioActivity extends MainActivity {
   }catch(OutOfMemoryError memory){memoryError();}catch(Exception e){emit(working?"commandError":"error","message",PublicErrors.message(e));}
  }
  private void configure(JSONObject o)throws Exception{
-  advancedOptions=new JSONObject();for(String key:new String[]{"rangeStart","rangeEnd","audio"})if(o.has(key))advancedOptions.put(key,o.get(key));
   double sec=o.getDouble("duration");int rate=o.getInt("fps"),w=o.getInt("width"),h=o.getInt("height"),bits=o.getInt("bitrate");String mime=o.getString("mime");
   if(!Double.isFinite(sec)||sec<1||sec>300||(rate!=30&&rate!=60)||(bits!=12000000&&bits!=16000000&&bits!=20000000))throw new IOException("تنظیمات رندر معتبر نیست.");
   int size=-1;int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}};
   for(int i=0;i<sizes.length;i++)if(w==sizes[i][0]&&h==sizes[i][1])size=i;
   int codec=Arrays.asList(CodecSupport.MIME).indexOf(mime);if(size<0||codec<0)throw new IOException("اندازه یا کدک پشتیبانی نمی‌شود.");
-  duration.setText(String.valueOf(sec));fps.setSelection(rate==60?1:0);sizeChoice.setSelection(size);codecChoice.setSelection(codec);quality.setSelection((bits/1000000-12)/4);gpu.setChecked(o.optBoolean("gpu",false));exportWidth=w;exportHeight=h;
+  studioOptions=new JSONObject().put("duration",sec).put("fps",rate).put("width",w).put("height",h)
+   .put("bitrate",bits).put("mime",mime).put("gpu",o.optBoolean("gpu",false));
+  for(String key:new String[]{"rangeStart","rangeEnd","audio"})if(o.has(key))studioOptions.put(key,o.get(key));
+  exportWidth=w;exportHeight=h;
  }
  private void layout(JSONObject m)throws Exception{
   if(stageFailed)return;
@@ -219,7 +326,25 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onStageContextLost(){emit("commandError","message",ImportedContent.CONTEXT_ERROR);}
  @Override protected void onRenderProgress(int done,int total){emit("progress","done",done,"total",total);}
  @Override protected void onRenderResult(File file){exportPath="/exports/"+UUID.randomUUID()+"."+resultExt;emit("result","url",ORIGIN+exportPath,"ext",resultExt,"size",file.length());saveCurrent();}
- private void emitDownloads(){emit("downloads","items",downloads.list(),"folder",DownloadRepository.RELATIVE);}
+ private void reportCapabilities(){
+  if(reportPending)return;
+  reportPending=true;
+  startupWorker.execute(()->{
+   try{
+    String report=CodecSupport.report();
+    runOnUiThread(()->{reportPending=false;emit("capabilities","text",report);});
+   }catch(RuntimeException unavailable){
+    runOnUiThread(()->{reportPending=false;emit("commandError","message","فهرست کدک‌ها در دسترس نیست؛ دوباره امتحان کن.");});
+   }
+  });
+ }
+ private void emitDownloads(){
+  if(closed)return;
+  startupWorker.execute(()->{
+   JSONArray items=downloads.list();
+   runOnUiThread(()->emit("downloads","items",items,"folder",DownloadRepository.RELATIVE));
+  });
+ }
  private void saveCurrent(){
   if(saving)return;
   File source=result;
@@ -240,7 +365,7 @@ public final class StudioActivity extends MainActivity {
   if(request==RENDER_PERMISSIONS){
    if(PermissionPolicy.notifications(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)emit("permissionNotice","message","اعلان‌ها مجاز نیستند؛ رندر ادامه دارد. برای دیدن پیشرفت یا توقف، به برنامه برگرد.");
    if(PermissionPolicy.legacyStorage(Build.VERSION.SDK_INT)&&checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED)emit("permissionNotice","message","دسترسی دانلودها مجاز نیست؛ ویدیو در برنامه می‌ماند و بعداً می‌توانی دوباره ذخیره کنی.");
-   if(pendingRender!=null)beginRender();else if(pendingQueueStart){pendingQueueStart=false;try{RenderService.startQueue(this);}catch(Exception e){emit("commandError","message",PublicErrors.message(e));}}return;
+   if(restoringRender!=null||(pendingRender!=null&&stage==null))permissionReturned=true;else if(pendingRender!=null)beginRender();else if(pendingQueueStart){pendingQueueStart=false;try{RenderService.startQueue(this);}catch(Exception e){emit("commandError","message",PublicErrors.message(e));}}return;
   }
   if(request==STORAGE_REQUEST){saving=false;if(grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)saveCurrent();else emit("downloadError","message","در اندروید ۸ و ۹ برای ذخیره در دانلودها، دسترسی حافظه لازم است. ویدیو هنوز برای ذخیرهٔ مجدد در دسترس است.");}
  }
@@ -249,10 +374,8 @@ public final class StudioActivity extends MainActivity {
    if(stageFailed||studioFailed)throw new IOException(WebViewSecurity.RENDERER_ERROR);
    if(importing)throw new IOException("خواندن فایل قبلی هنوز تمام نشده است.");
    if(RenderService.busy(RenderService.latest(this)))throw new IOException("یک رندر دیگر در حال اجراست.");
-   int[][] sizes={{640,360},{1280,720},{1920,1080},{1080,1920},{1080,1080}};int[] size=sizes[sizeChoice.getSelectedItemPosition()];
-   JSONObject options=new JSONObject().put("duration",Double.parseDouble(duration.getText().toString())).put("fps",fps.getSelectedItemPosition()==0?30:60).put("width",size[0]).put("height",size[1]).put("bitrate",(12+quality.getSelectedItemPosition()*4)*1000000).put("mime",CodecSupport.MIME[codecChoice.getSelectedItemPosition()]).put("gpu",gpu.isChecked()).put("onlineResources",onlineResourcesAllowed);
-   for(String key:new String[]{"rangeStart","rangeEnd","audio"})if(advancedOptions.has(key))options.put(key,advancedOptions.get(key));
-   final RenderRequest candidate=RenderRequest.create(editor.getText().toString(),options);pendingRender=candidate;working=true;
+   studioOptions.put("onlineResources",onlineResourcesAllowed);
+   final RenderRequest candidate=RenderRequest.create(savedCode,studioOptions);pendingRender=candidate;working=true;
    new Thread(()->{boolean videoSupported=false;try{CodecSupport.encoder(candidate.mime,candidate.width,candidate.height,candidate.fps,candidate.bitrate);videoSupported=true;if(candidate.audio!=null)AudioComposer.validate(this,candidate);runOnUiThread(()->{if(closed||pendingRender!=candidate)return;try{authorizeRender(candidate);}catch(Exception e){working=false;pendingRender=null;emit("error","message",PublicErrors.message(e));}});}
     catch(Throwable unsupported){org.json.JSONObject proposed=null;if(!videoSupported&&!(unsupported instanceof OutOfMemoryError))try{proposed=CodecSupport.suggestion(candidate);}catch(Throwable ignored){}final org.json.JSONObject next=proposed;
      runOnUiThread(()->{if(closed||pendingRender!=candidate)return;pendingRender=null;working=false;emit("error","message",PublicErrors.message(unsupported));offerSuggestion(next);});}
@@ -306,7 +429,7 @@ public final class StudioActivity extends MainActivity {
   runOnUiThread(()->emit("queueIdle"));
  }
  private void beginRender(){
-  RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}
+  permissionReturned=false;RenderRequest request=pendingRender;pendingRender=null;if(request==null){working=false;emit("error","message","درخواست رندر موجود نیست؛ دوباره اجرا کن.");return;}
   try{RenderService.start(this,request);working=true;stage.onPause();emit("renderState","state",new JSONObject().put("phase","preparing").put("id",request.id).put("done",0).put("total",request.frames).put("options",request.options()).put("message","آماده‌سازی رندر مستقل…"));}
   catch(Exception e){working=false;emit("error","message","شروع سرویس رندر انجام نشد: "+PublicErrors.message(e));}
  }
@@ -334,7 +457,7 @@ public final class StudioActivity extends MainActivity {
  @Override protected void onResume(){super.onResume();syncStudioAccessibility();}
  @Override protected void onStart(){super.onStart();RenderService.addListener(renderListener);if(bridgeReady)renderState(RenderService.latest(this));}
  @Override protected void onStop(){RenderService.removeListener(renderListener);super.onStop();}
- @Override protected void onSaveInstanceState(Bundle out){if(pendingRender!=null)out.putString("pendingRender",pendingRender.id);super.onSaveInstanceState(out);}
+ @Override protected void onSaveInstanceState(Bundle out){if(pendingRender!=null)out.putString("pendingRender",pendingRender.id);else if(restoringRender!=null)out.putString("pendingRender",restoringRender);out.putBoolean("permissionReturned",permissionReturned);super.onSaveInstanceState(out);}
  private void openDownload(String uri)throws Exception{
   try{startActivity(downloads.openIntent(uri));}catch(android.content.ActivityNotFoundException e){throw new IOException("پخش‌کنندهٔ سازگار روی گوشی پیدا نشد.");}catch(FileNotFoundException e){throw new IOException("فایل پیدا نشد؛ ممکن است از دانلودها پاک یا جابه‌جا شده باشد.");}
  }
@@ -345,11 +468,15 @@ public final class StudioActivity extends MainActivity {
  }
  @Override protected void onRenderError(String error){emit(cancelled?"cancelled":"error","message",error==null?"رندر انجام نشد.":error);}
  @Override protected void onVideoSaved(){emit("saved");}
+ private void acceptPickedHtml(String html){
+  if(!bridgeReady){pickedBeforeReady=html;return;}
+  fontWorkflow.newImport();nextPickedFontHtml=html.trim();emit("file","code",html);
+ }
  @Override protected void onActivityResult(int r,int code,Intent data){
   if(r==4){JSONObject options=pendingQueueOptions;pendingQueueOptions=null;if(code==RESULT_OK&&data!=null&&options!=null)importQueue(data,options);return;}
   if(r==3){if(code==RESULT_OK&&data!=null&&data.getData()!=null&&!importing){importing=true;emit("audioImporting");new Thread(()->{try{JSONObject item=AudioAssets.importFile(this,data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)emit("audioSelected","item",item);});}catch(Throwable e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;runOnUiThread(()->emit("audioIdle"));}},"audio-import").start();}return;}
-  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed){fontWorkflow.newImport();nextPickedFontHtml=html.trim();emit("file","code",html);}});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
+  if(r==1){if(code==RESULT_OK&&data!=null&&data.getData()!=null){if(importing)return;importing=true;new Thread(()->{try{String html=HtmlImport.read(getContentResolver(),data.getData());runOnUiThread(()->{if(!working&&!saving&&!closed)acceptPickedHtml(html);});}catch(OutOfMemoryError memory){runOnUiThread(this::memoryError);}catch(Exception e){runOnUiThread(()->emit("commandError","message",PublicErrors.message(e)));}finally{importing=false;}},"html-import").start();}return;}
   super.onActivityResult(r,code,data);
  }
- @Override protected void onDestroy(){closed=true;readyPoll++;if(fontWorkflow!=null)fontWorkflow.close();if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}
+ @Override protected void onDestroy(){closed=true;startupWorker.shutdownNow();if(startup!=null)startup.stop();readyPoll++;if(fontWorkflow!=null)fontWorkflow.close();if(port!=null)port.close();if(studio!=null&&!studioFailed)studio.destroy();super.onDestroy();}
 }

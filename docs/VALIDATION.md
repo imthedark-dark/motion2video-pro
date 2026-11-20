@@ -147,3 +147,5 @@ adb logcat -d -s Motion2VideoWebView:D '*:S'
 ```
 
 Note the WebView version from About, renderer crash/kill category and CSP category if present. Redact identifiers and share only the relevant reviewed lines. Do not attach private animations, paths, account details, tokens, full logcat or packet captures.
+
+For the Android 11 cold-start ANR, record first draw, controls ready and the main-queue budget on a physical device. [Startup measurement procedure](STARTUP_PROFILE.md)

@@ -3,13 +3,12 @@ import android.app.*;import android.content.*;import android.content.pm.*;import
 /** Exercises a minified release through SDK/UI surfaces; no app field/class reflection. */
 public final class ReleaseSmokeTest extends Instrumentation {
  private WebView studio;
- private WebView find(View v){if(v instanceof WebView){String u=((WebView)v).getUrl();if(u!=null&&u.startsWith("https://studio.motion.local"))return (WebView)v;}if(v instanceof ViewGroup)for(int i=0;i<((ViewGroup)v).getChildCount();i++){WebView w=find(((ViewGroup)v).getChildAt(i));if(w!=null)return w;}return null;}
  private String js(String code)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();runOnMainSync(()->studio.evaluateJavascript(code,f::complete));return f.get(120,TimeUnit.SECONDS);}
  private void require(boolean value,String message)throws Exception{if(!value)throw new Exception(message);}
  @Override public void onCreate(Bundle b){super.onCreate(b);start();}
  @Override public void onStart(){Bundle out=new Bundle();try{
   Context c=getTargetContext();require((c.getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)==0,"Expected non-debuggable release");require(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("example.com"),"Cleartext allowed");
-  Activity a=startActivitySync(new Intent().setClassName(c,"dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));runOnMainSync(()->studio=find(a.getWindow().getDecorView()));require(studio!=null,"Studio WebView missing");
+  Activity a=startActivitySync(new Intent().setClassName(c,"dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));studio=StudioWindow.await(this,a);
   long limit=System.currentTimeMillis()+300000;while(!"true".equals(js("!!(window.MotionStudio&&MotionStudio.state().native)"))){if(System.currentTimeMillis()>limit)throw new Exception("Release native bridge timeout");Thread.sleep(1000);}
   String html="<!doctype html><html lang='fa' dir='rtl'><head><style>body{margin:0;background:#111;color:#f3efea;text-align:center;font-family:Vazirmatn}#ball{position:absolute;left:20px;bottom:20px;width:30px;height:30px;background:#ff3b00;animation:move 1s both}@keyframes move{to{transform:translateX(100px)}}</style></head><body><h1>آزمون نسخهٔ انتشار</h1><div id='ball'></div></body></html>";
   js("document.getElementById('introCurtain').hidden=true;document.querySelectorAll('.orb,.grain').forEach(e=>e.style.display='none');if(window.gsap)gsap.killTweensOf('.orb-a,.orb-b,.keyframe-dot');document.getElementById('code').value="+JSONObject.quote(html)+";document.getElementById('duration').value='1';document.getElementById('fps').value='30';document.getElementById('size').value='640x360';document.getElementById('bitrate').value='12000000';MotionStudio.render();true");
