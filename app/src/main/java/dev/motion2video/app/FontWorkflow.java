@@ -83,13 +83,20 @@ final class FontWorkflow implements AutoCloseable {
   CheckBox remember=new CheckBox(owner);
   remember.setText("اجازهٔ دانلود دوباره فقط برای همین خانواده‌ها");
   remember.setPadding(owner.dp(20),0,owner.dp(20),0);
+  LinearLayout content=fontPanel();
+  TextView notice=new TextView(owner);
+  notice.setText(String.join("، ",families)+"\nسقف تقریبی حجم: "+(12*families.size())+" مگابایت\n\n"+
+    "فقط فهرست و فایل فونت از گوگل درخواست می‌شود. گوگل نام خانواده و نشانی IP دستگاه را می‌بیند. فونت روی همین گوشی ذخیره می‌شود. این اجازه اینترنت موشن را فعال نمی‌کند. هر فونت مجوز خودش را دارد.");
+  content.addView(notice);
+  remember.setMinHeight(owner.dp(48));
+  content.addView(remember);
+  addAction(content,"دانلود و ذخیره",()->download(families,remember.isChecked(),discovery,installed,summary,proceed,previousScope));
+  addAction(content,"فونت جایگزین",()->{
+   for(String family:families)sessionFallback.add(FontCache.key(family));
+   resume(discovery,installed,summary,proceed,"");
+  });
   dialog=new AlertDialog.Builder(owner).setTitle("دانلود فونت از Google Fonts")
-   .setMessage(String.join("، ",families)+"\nسقف تقریبی حجم: "+(12*families.size())+" مگابایت\n\n"+
-    "فقط فهرست فونت‌ها و فایل فونت از گوگل درخواست می‌شود. گوگل می‌تواند نام خانوادهٔ درخواستی و نشانی IP دستگاه را ببیند. فایل روی همین گوشی ذخیره می‌شود. این اجازه اینترنت موشن را فعال نمی‌کند. هر فونت مجوز خودش را دارد.")
-   .setView(remember)
-   .setPositiveButton("دانلود و ذخیره",(d,w)->download(families,remember.isChecked(),discovery,installed,summary,proceed,previousScope))
-   .setNeutralButton("فونت جایگزین",(d,w)->{for(String family:families)sessionFallback.add(FontCache.key(family));resume(discovery,installed,summary,proceed,"");})
-   .setNegativeButton("لغو",(d,w)->finish(cancel))
+   .setView(scrollable(content)).setNegativeButton("لغو",(d,w)->finish(cancel))
    .setOnCancelListener(d->finish(cancel)).show();
  }
 
@@ -110,6 +117,7 @@ final class FontWorkflow implements AutoCloseable {
   panel.addView(label);
   ProgressBar bar=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);
   int maximum=FontDownload.FAMILY_LIMIT*families.size();
+  bar.setContentDescription("پیشرفت دانلود فونت");
   bar.setMax(maximum);
   panel.addView(bar,new LinearLayout.LayoutParams(-1,-2));
   dialog=new AlertDialog.Builder(owner).setTitle("دانلود فونت").setView(panel)
@@ -220,12 +228,10 @@ final class FontWorkflow implements AutoCloseable {
  private void showSettings(List<FontCache.Entry> entries){
   Map<String,Long> totals=new TreeMap<>(String.CASE_INSENSITIVE_ORDER), dates=new HashMap<>();
   for(FontCache.Entry e:entries){totals.merge(e.family,(long)e.bytes,Long::sum);dates.merge(e.family,e.date,Math::max);}
-  LinearLayout panel=new LinearLayout(owner);
-  panel.setOrientation(LinearLayout.VERTICAL);
-  panel.setLayoutDirection(ViewGroup.LAYOUT_DIRECTION_RTL);
-  panel.setPadding(owner.dp(18),0,owner.dp(18),0);
+  LinearLayout panel=fontPanel();
   Switch enabled=new Switch(owner);
   enabled.setText("دانلود و استفاده از فونت ذخیره‌شده");
+  enabled.setMinHeight(owner.dp(48));
   enabled.setChecked(AppFonts.enabled(owner));
   enabled.setOnCheckedChangeListener((button,checked)->settings.edit().putBoolean("enabled",checked).apply());
   panel.addView(enabled);
@@ -234,6 +240,8 @@ final class FontWorkflow implements AutoCloseable {
   panel.addView(total);
   for(String family:totals.keySet()){
    Button row=new Button(owner);
+   row.setMinHeight(owner.dp(48));
+   row.setSingleLine(false);
    row.setText(family+" • "+(totals.get(family)+1023)/1024+" KB • "+
     DateFormat.getDateInstance().format(new Date(dates.get(family)))+" • حذف");
    row.setOnClickListener(v->confirmDelete(family));
@@ -244,11 +252,10 @@ final class FontWorkflow implements AutoCloseable {
    empty.setText("هنوز فونتی ذخیره نشده است.");
    panel.addView(empty);
   }
-  ScrollView scroll=new ScrollView(owner);
-  scroll.addView(panel);
-  dialog=new AlertDialog.Builder(owner).setTitle("فونت‌ها").setView(scroll)
-   .setNeutralButton("پاک‌کردن اجازه‌ها",(d,w)->{settings.edit().remove("remembered").apply();toast("اجازه‌های ذخیره‌شده پاک شدند.");})
-   .setNegativeButton("پاک‌کردن همه",(d,w)->confirmDelete(null)).setPositiveButton("بستن",null).show();
+  addAction(panel,"پاک‌کردن اجازه‌ها",()->{settings.edit().remove("remembered").apply();toast("اجازه‌های ذخیره‌شده پاک شدند.");});
+  addAction(panel,"پاک‌کردن همه",()->confirmDelete(null));
+  dialog=new AlertDialog.Builder(owner).setTitle("فونت‌ها").setView(scrollable(panel))
+   .setPositiveButton("بستن",null).show();
  }
 
  private void confirmDelete(String family){
@@ -278,6 +285,26 @@ final class FontWorkflow implements AutoCloseable {
   });
  }
 
+ private LinearLayout fontPanel(){
+  LinearLayout panel=new LinearLayout(owner);
+  panel.setOrientation(LinearLayout.VERTICAL);
+  panel.setLayoutDirection(ViewGroup.LAYOUT_DIRECTION_RTL);
+  panel.setPadding(owner.dp(18),0,owner.dp(18),0);
+  return panel;
+ }
+ private ScrollView scrollable(LinearLayout content){
+  ScrollView scroll=new ScrollView(owner);
+  scroll.addView(content);
+  return scroll;
+ }
+ private void addAction(LinearLayout panel,String title,Runnable action){
+  Button button=new Button(owner);
+  button.setText(title);
+  button.setSingleLine(false);
+  button.setMinHeight(owner.dp(48));
+  button.setOnClickListener(v->{dialog.dismiss();action.run();});
+  panel.addView(button);
+ }
  private void toast(String message){Toast.makeText(owner,message,Toast.LENGTH_SHORT).show();}
 
  @Override public void close(){

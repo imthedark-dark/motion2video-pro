@@ -1,6 +1,35 @@
 const {chromium}=require('playwright-core');
 const fs=require('fs'),path=require('path'),http=require('http'),assert=require('assert');
 (async()=>{const root=require('path').resolve(__dirname,'..'),errors=[];const server=http.createServer((q,r)=>{try{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));r.setHeader('Access-Control-Allow-Origin','*');r.setHeader('Content-Type',f.endsWith('.html')?'text/html':f.endsWith('.js')?'application/javascript':f.endsWith('.css')?'text/css':f.endsWith('.ttf')?'font/ttf':'application/octet-stream');let body=fs.readFileSync(f);if(f.endsWith('.html'))body=body.toString().replace('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js','http://127.0.0.1:9005/app/src/main/assets/studio-gsap-3.12.5.min.js').replace('https://cdn.tailwindcss.com','http://127.0.0.1:9005/app/src/main/assets/'+(q.url.includes('native-css')?'studio-tailwind-loader.js':'studio-tailwind.js')).replace(/https:\/\/fonts.googleapis.com\/css2\?[^"']+/,'http://127.0.0.1:9005/app/src/main/assets/fonts.css');if(f.endsWith('.css'))body=body.toString().replaceAll('https://motion.local/fonts/','http://127.0.0.1:9005/app/src/main/assets/fonts/');r.end(body)}catch(e){r.writeHead(404);r.end()}});await new Promise(r=>server.listen(9005,'127.0.0.1',r));const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||chromium.executablePath(),headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});try{const context=await browser.newContext();await context.route('**/gsap.min.js',r=>r.fulfill({path:root+'/app/src/main/assets/studio-gsap-3.12.5.min.js',contentType:'application/javascript',headers:{'access-control-allow-origin':'*'}}));await context.route('https://fonts.googleapis.com/**',r=>r.fulfill({body:fs.readFileSync(root+'/app/src/main/assets/fonts.css','utf8'),contentType:'text/css',headers:{'access-control-allow-origin':'*'}}));await context.route('https://motion.local/fonts/**',r=>r.fulfill({path:root+'/app/src/main/assets'+decodeURIComponent(new URL(r.request().url()).pathname),contentType:'font/ttf',headers:{'access-control-allow-origin':'*'}}));await context.route('https://cdn.tailwindcss.com/**',r=>r.fulfill({body:'',contentType:'application/javascript'}));const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));const reports=[];for(const [name,width,height] of [['mobile',393,852],['desktop',1440,1000],['native-css',393,852]]){await page.setViewportSize({width,height});await page.goto('http://127.0.0.1:9005/ui/Motion2Video-Studio.html'+(name==='native-css'?'?native-css=1':''),{waitUntil:'load'});await page.waitForFunction(()=>window.MotionStudio?.state().frameReady);await page.waitForTimeout(3800);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'horizontal overflow');assert.equal(await page.locator('#fps').inputValue(),'60');assert(await page.evaluate(()=>parseFloat(getComputedStyle(document.querySelector('.hero h1')).fontSize)>=25),'Tailwind must not override title typography');assert(await page.evaluate(()=>parseFloat(getComputedStyle(document.querySelector('#code')).fontSize)<=12),'Tailwind must not override editor typography');const layout=await page.evaluate(()=>{const s=document.querySelector('.stage-panel').getBoundingClientRect(),c=document.querySelector('.controls-panel').getBoundingClientRect();return{s:{x:s.x,y:s.y,width:s.width},c:{x:c.x,y:c.y,width:c.width}}});if(width<1024)assert(layout.s.y<layout.c.y);else assert(layout.s.x>layout.c.x,'desktop stage must be on right');await page.screenshot({path:root+'/tests/studio-'+name+'.png',fullPage:true});reports.push({name,layout});}
+// Browser approximation of Android 200% text zoom. Keep native dialog checks in the device matrix.
+const accessible=await context.newPage();
+try{
+ await accessible.setViewportSize({width:393,height:852});
+ await accessible.emulateMedia({reducedMotion:'reduce'});
+ await accessible.goto('http://127.0.0.1:9005/ui/Motion2Video-Studio.html?native-css=1');
+ await accessible.waitForFunction(()=>document.getElementById('introCurtain').hidden);
+ await accessible.evaluate(()=>document.fonts.ready);
+ await accessible.evaluate(()=>{
+  const elements=[...document.querySelectorAll('body *')];
+  const sizes=elements.map(el=>parseFloat(getComputedStyle(el).fontSize));
+  elements.forEach((el,i)=>el.style.setProperty('font-size',sizes[i]*2+'px','important'));
+ });
+ const issues=await accessible.evaluate(()=>{
+  const errors=[];
+  if(document.documentElement.scrollWidth>innerWidth)errors.push('page overflows');
+  for(const el of document.querySelectorAll('button,input,select,textarea')){
+   const box=el.type==='checkbox'?el.closest('label'):el;
+   const rect=box.getBoundingClientRect();
+   if(!rect.width||!rect.height)continue;
+   if(rect.width<48||rect.height<48)errors.push(el.id+' target '+rect.width+'x'+rect.height);
+   if(el.tagName==='BUTTON'&&el.scrollWidth>el.clientWidth+1)errors.push(el.id+' clipped');
+   if(!(el.textContent.trim()||el.getAttribute('aria-label')||el.labels?.length))errors.push(el.id+' unnamed');
+  }
+  return errors;
+ });
+ assert.deepEqual(issues,[]);
+ console.log('PASS: 393px studio at 200% text, named controls, 48px targets and reduced-motion startup.');
+}finally{await accessible.close();}
 await page.locator('#clearButton').click();assert.equal(await page.locator('#code').inputValue(),'');await page.locator('#previewButton').click();assert(await page.locator('#message').isVisible());await page.locator('#presetButton').click();await page.waitForFunction(()=>MotionStudio.state().frameReady);assert.equal(await page.locator('#duration').inputValue(),'14');const frame=page.frames().find(f=>f.parentFrame());const hashes=[];for(const time of [0,4,7,12.5]){await frame.evaluate(t=>{motionTimeline.pause().time(t,false);return true},time);await page.waitForTimeout(80);hashes.push(require('crypto').createHash('sha256').update(await page.locator('#stageFrame').screenshot()).digest('hex'));}assert.equal(new Set(hashes).size,4,'showreel frames must change');
 // Visual screenshots above retain atmosphere. Stop ornamental work for large-file protocol fixtures.
 await page.evaluate(()=>{if(window.gsap)gsap.killTweensOf('.orb-a,.orb-b,.keyframe-dot');document.querySelectorAll('.film-grain,.grain').forEach(e=>e.style.visibility='hidden')});

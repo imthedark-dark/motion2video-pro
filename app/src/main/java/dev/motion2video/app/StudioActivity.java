@@ -70,6 +70,7 @@ public final class StudioActivity extends MainActivity {
    @Override public void onPageStarted(WebView v,String url,Bitmap icon){if(url.equals(ORIGIN+"/index.html")){bridgeReady=false;if(port!=null){port.close();port=null;}}}
    @Override public void onPageFinished(WebView view,String url){
     if(!url.equals(ORIGIN+"/index.html"))return;
+    syncStudioAccessibility();
     if(port!=null)return;
     WebMessagePort[] pair=view.createWebMessageChannel();port=pair[0];
     port.setWebMessageCallback(new WebMessagePort.WebMessageCallback(){@Override public void onMessage(WebMessagePort p,WebMessage m){command(m.getData());}});
@@ -324,6 +325,13 @@ public final class StudioActivity extends MainActivity {
    emitDownloads();
   }else if(phase.equals("cancelled"))emit("cancelled");else{String message=s.optString("message","رندر متوقف شد.");emit("error","message",message);if(WebViewSecurity.RENDERER_ERROR.equals(message)&&!s.optString("id").equals(getPreferences(0).getString("last_renderer_notice",""))){getPreferences(0).edit().putString("last_renderer_notice",s.optString("id")).apply();showRendererRecovery(WebViewSecurity.RECOVERY_HINT);}}
  }
+ private void syncStudioAccessibility(){
+  if(studio==null||studioFailed)return;
+  studio.getSettings().setTextZoom(Math.round(100*getResources().getConfiguration().fontScale));
+  boolean reduced=!android.animation.ValueAnimator.areAnimatorsEnabled();
+  studio.evaluateJavascript("window.MotionStudio && MotionStudio.systemMotion("+reduced+")",null);
+ }
+ @Override protected void onResume(){super.onResume();syncStudioAccessibility();}
  @Override protected void onStart(){super.onStart();RenderService.addListener(renderListener);if(bridgeReady)renderState(RenderService.latest(this));}
  @Override protected void onStop(){RenderService.removeListener(renderListener);super.onStop();}
  @Override protected void onSaveInstanceState(Bundle out){if(pendingRender!=null)out.putString("pendingRender",pendingRender.id);super.onSaveInstanceState(out);}
