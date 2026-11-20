@@ -44,7 +44,18 @@ for(const file of [
 await page.locator('#fileInput').setInputFiles({name:'large.html',mimeType:'text/html',buffer:Buffer.from('<!doctype html><!--'+'x'.repeat(2*1024*1024)+'--><body>Large valid import</body>')});await page.waitForFunction(()=>document.getElementById('code').value.length>2*1024*1024);
 await page.locator('#fileInput').setInputFiles({name:'موشن.HTM',mimeType:'text/plain',buffer:Buffer.from('\ufeff<!doctype html><body>سلام العربية</body>')});await page.waitForFunction(()=>document.getElementById('code').value.includes('سلام العربية'));assert(!(await page.locator('#code').inputValue()).startsWith('\ufeff'));
 await page.locator('#presetButton').click();await page.waitForFunction(()=>MotionStudio.state().frameReady);
-assert(await page.evaluate(async()=>{const el=document.getElementById('fps'),old=el.value;el.add(new Option('invalid','45'));el.value='45';try{await MotionStudio.render();return document.getElementById('message').textContent==='تنظیمات رندر معتبر نیست.'&&!MotionStudio.state().busy}finally{el.remove(el.length-1);el.value=old}}),'non-enum FPS accepted');
+assert(await page.evaluate(async()=>{const el=document.getElementById('fps'),old=el.value;el.add(new Option('invalid','45'));el.value='45';try{await MotionStudio.render();return document.getElementById('message').textContent==='تنظیمات رندر معتبر نیست؛ اندازه، نرخ فریم و کدک را دوباره از فهرست انتخاب کن.'&&!MotionStudio.state().busy}finally{el.remove(el.length-1);el.value=old}}),'non-enum FPS accepted');
+assert(await page.evaluate(async()=>{
+ const media=navigator.mediaDevices, previous=media.getDisplayMedia;
+ const crop=window.CropTarget, supports=MediaRecorder.isTypeSupported;
+ try{
+  window.CropTarget=crop||{};
+  MediaRecorder.isTypeSupported=()=>true;
+  media.getDisplayMedia=async()=>{throw new DOMException('PRIVATE_TEST_MARKER','NotAllowedError')};
+  await MotionStudio.render();
+  return document.getElementById('message').textContent.startsWith('اجازهٔ دسترسی داده نشد');
+ }finally{media.getDisplayMedia=previous;MediaRecorder.isTypeSupported=supports;window.CropTarget=crop}
+}),'capture denial must show reviewed Persian guidance');
 assert((await page.locator('#estimateText').innerText()).includes('MB'));
 // Range rejects outside duration and preserves explicit source offsets in native transport.
 await page.locator('#useRange').check();await page.locator('#rangeStart').fill('2');await page.locator('#rangeEnd').fill('30');await page.locator('#recordButton').click();assert(await page.locator('#message').isVisible());assert.equal(await page.evaluate(()=>MotionStudio.state().busy),false);
