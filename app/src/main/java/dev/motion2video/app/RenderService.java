@@ -7,52 +7,65 @@ import org.json.*;import java.io.*;import java.util.concurrent.CopyOnWriteArrayS
 public final class RenderService extends Service {
  public interface Listener{void changed(JSONObject state);}
  private static final CopyOnWriteArraySet<Listener> listeners=new CopyOnWriteArraySet<>();
- private static volatile RenderService instance;private static volatile String stateJson;private static volatile boolean pendingCancel;
+ private static volatile RenderService instance;private static volatile String stateJson;private static volatile boolean pendingCancel,pendingRendererError,draining,restartRequired;
  private static final String CHANNEL="motion_render",CANCEL="dev.motion2video.CANCEL_RENDER";private static final int NOTIFICATION=241;
- private final Handler main=new Handler(Looper.getMainLooper());private volatile boolean cancelled;private volatile RenderEngine engine;
- private PowerManager.WakeLock wake;private long began,lastNotice,lastPersist;private RenderRequest request;private boolean alive;private int lastStartId;private Intent queued;
+ private final Handler main=new Handler(Looper.getMainLooper());private volatile boolean cancelled;private volatile String rendererError;private volatile RenderEngine engine;
+ private PowerManager.WakeLock wake;private long began,lastNotice,lastPersist;private RenderRequest request;private volatile boolean alive,timeoutStopping;private int lastStartId;private Intent queued;private boolean queueJob;private String activeId;private volatile boolean workerRunning;
  public static boolean busy(JSONObject s){String phase=s.optString("phase");return phase.equals("preparing")||phase.equals("rendering")||phase.equals("saving")||phase.equals("cancelling");}
  public static JSONObject latest(Context c){
   String raw=stateJson;if(raw==null)raw=c.getSharedPreferences("render_state",MODE_PRIVATE).getString("last","{}");
-  try{JSONObject s=new JSONObject(raw);if(busy(s)&&instance==null){String id=s.optString("id"),ext=s.optString("ext");if(id.matches("[a-f0-9-]{36}")){if(ext.equals("mp4")||ext.equals("webm"))new File(c.getCacheDir(),"render-"+id+"."+ext).delete();try{RenderRequest.file(c,id).delete();}catch(Exception ignored){}}s.put("phase","error");s.put("message","رندر قبلی با توقف فرایند برنامه قطع شد؛ دوباره اجرا کن.");stateJson=s.toString();c.getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",stateJson).apply();}return s;}catch(JSONException e){return new JSONObject();}
+  try{JSONObject s=new JSONObject(raw);if(s.optString("phase").equals("error"))s.put("message",PublicErrors.sanitize(s.optString("message")));if(s.has("warning"))s.put("warning",PublicErrors.SAVE_WARNING);boolean interrupted=busy(s);if((interrupted||s.optBoolean("cleanupPending"))&&instance==null){String id=s.optString("id"),ext=s.optString("ext");if(id.matches("[a-f0-9-]{36}")){if(ext.equals("mp4")||ext.equals("webm")){new File(c.getCacheDir(),"render-"+id+"."+ext).delete();new File(c.getCacheDir(),"render-"+id+"."+ext+".faststart").delete();}for(String suffix:new String[]{".pcm",".m4a",".mp4",".mp4.faststart"})new File(c.getCacheDir(),"audio-"+id+suffix).delete();try{RenderRequest.file(c,id).delete();}catch(Exception ignored){}}s.remove("cleanupPending");s.put("phase","error");if(!s.has("message")||interrupted)s.put("message","رندر قبلی با توقف فرایند برنامه قطع شد؛ دوباره اجرا کن.");stateJson=s.toString();c.getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",stateJson).apply();}return s;}catch(JSONException e){return new JSONObject();}
  }
  public static synchronized void recordDownload(Context c,String file,JSONObject item){try{JSONObject s=latest(c);if(s.optString("phase").equals("complete")&&file.equals(s.optString("file"))){s.put("download",item);s.remove("warning");stateJson=s.toString();c.getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",stateJson).apply();}}catch(JSONException ignored){}}
  public static void addListener(Listener l){listeners.add(l);}public static void removeListener(Listener l){listeners.remove(l);}
- public static void start(Context c,RenderRequest request)throws Exception{request.write(c);pendingCancel=false;try{c.startForegroundService(new Intent(c,RenderService.class).putExtra("job",request.id));}catch(Exception e){RenderRequest.file(c,request.id).delete();throw e;}}
+ public static void start(Context c,RenderRequest request)throws Exception{if(restartRequired)throw new IOException("پردازش قبلی کاملاً متوقف نشده است؛ برنامه را توقف اجباری و دوباره باز کن.");if(draining)throw new IOException("رندر در حال توقف است؛ کمی صبر کن.");RenderService running=instance;if(running!=null&&running.timeoutStopping)throw new IOException("مهلت سرویس تمام شده است؛ پس از توقف کامل دوباره اجرا کن.");request.write(c);pendingCancel=false;pendingRendererError=false;try{c.startForegroundService(new Intent(c,RenderService.class).putExtra("job",request.id));}catch(Exception e){RenderRequest.file(c,request.id).delete();throw e;}}
+ public static void startQueue(Context c)throws Exception{if(restartRequired)throw new IOException("پردازش قبلی کاملاً متوقف نشده است؛ برنامه را توقف اجباری و دوباره باز کن.");if(draining)throw new IOException("رندر در حال توقف است؛ کمی صبر کن.");RenderService s=instance;if(s!=null&&s.timeoutStopping)throw new IOException("مهلت سرویس تمام شده است؛ پس از توقف کامل دوباره اجرا کن.");c.startForegroundService(new Intent(c,RenderService.class).setAction("queue"));}
+ public static void cancelQueued(Context c,String id)throws Exception{if(RenderQueue.cancelWaiting(c,id))return;RenderService s=instance;if(s!=null&&s.request!=null&&s.request.id.equals(id))s.cancelJob();}
+ public static void rendererGone(Context c){RenderService s=instance;if(s!=null&&s.request!=null&&busy(latest(c))){s.rendererError=WebViewSecurity.RENDERER_ERROR;s.cancelJob();}else{pendingCancel=true;pendingRendererError=true;}}
  public static void cancel(Context c){RenderService s=instance;if(s!=null&&s.request!=null&&busy(latest(c)))s.cancelJob();else pendingCancel=true;}
  @Override public void onCreate(){super.onCreate();instance=this;alive=true;NotificationManager n=getSystemService(NotificationManager.class);NotificationChannel channel=new NotificationChannel(CHANNEL,"رندر ویدیو",NotificationManager.IMPORTANCE_LOW);channel.setDescription("پیشرفت رندر Motion2Video و کنترل لغو");n.createNotificationChannel(channel);}
  @Override public int onStartCommand(Intent intent,int flags,int startId){
   lastStartId=startId;
+  if(timeoutStopping){discard(intent);stopSelf();return START_NOT_STICKY;}
   if(intent!=null&&CANCEL.equals(intent.getAction())){cancelJob();if(request==null)stopSelf();return START_NOT_STICKY;}
-  if(request!=null){if(!busy(latest(this)))queued=intent;return START_NOT_STICKY;}
+  if(request!=null){if(intent!=null&&!"queue".equals(intent.getAction())&&!busy(latest(this)))queued=intent;return START_NOT_STICKY;}
+  if(draining||restartRequired){discard(intent);stopSelf();return START_NOT_STICKY;}
   try{
    startForegroundNow(notification("آماده‌سازی رندر…",0,0,true));
-   if(intent==null)throw new IOException("درخواست رندر موجود نیست.");request=RenderRequest.read(this,intent.getStringExtra("job"));
-   began=System.currentTimeMillis();cancelled=pendingCancel;pendingCancel=false;
+   if(intent==null)throw new IOException("درخواست رندر موجود نیست.");queueJob="queue".equals(intent.getAction());activeId=queueJob?RenderQueue.claim(this):intent.getStringExtra("job");if(activeId==null){finishService();return START_NOT_STICKY;}request=RenderRequest.read(this,activeId);
+   began=System.currentTimeMillis();rendererError=pendingRendererError?WebViewSecurity.RENDERER_ERROR:null;cancelled=pendingCancel;pendingCancel=false;pendingRendererError=false;
    PowerManager pm=(PowerManager)getSystemService(POWER_SERVICE);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"Motion2Video:Render");wake.setReferenceCounted(false);wake.acquire(6*60*60*1000L);
    publish("preparing",0,"آماده‌سازی HTML و قلم‌ها…",null,null,null);
-   new Thread(this::runJob,"motion-render").start();
-  }catch(Throwable e){publish("error",0,error(e),null,null,null);finishService();}
+   workerRunning=true;new Thread(this::runJob,"motion-render").start();
+  }catch(Throwable e){if(activeId==null){RenderQueue.pause(this);timeoutStopping=true;discard(intent);}publish("error",0,error(e),null,null,null);if(queueJob&&activeId!=null)RenderQueue.cleanup(this,activeId);finishService();}
   return START_NOT_STICKY;
  }
  private void startForegroundNow(Notification notification){if(Build.VERSION.SDK_INT>=35)startForeground(NOTIFICATION,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING);else if(Build.VERSION.SDK_INT>=29)startForeground(NOTIFICATION,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);else startForeground(NOTIFICATION,notification);}
  private void runJob(){
-  File result=null;
+  final RenderRequest job=request;File result=null;
   try{
-   engine=new RenderEngine(this,request);result=engine.render(()->cancelled,(done,total)->publish("rendering",done,"رندر فریم‌ها",null,null,null));
-   if(cancelled)throw new IOException("رندر لغو شد.");publish("saving",request.frames,"ذخیره در دانلودها…",result,null,null);
+   if(queueJob&&new StatFs(getCacheDir().getAbsolutePath()).getAvailableBytes()<RenderEstimates.bytes(job.frames,job.fps,job.bitrate,job.audio!=null)+32L*1024*1024)throw new IOException("فضای خالی برای فایل‌های صف کافی نیست.");
+   if(job.audio!=null)AudioComposer.validate(this,job);
+   engine=new RenderEngine(this,job);result=engine.render(()->cancelled,(done,total)->publish("rendering",done,"رندر فریم‌ها",null,null,null));
+   if(job.audio!=null){publish("saving",job.frames,"پردازش صدا و اتصال به MP4…",result,null,null);AudioComposer.attach(this,job,result,()->cancelled);}
+   if(cancelled)throw new IOException("رندر لغو شد.");publish("saving",job.frames,"ذخیره در دانلودها…",result,null,null);
    JSONObject download=null;String warning=null;
-   try{download=new DownloadRepository(this).save(result,"video/"+request.ext,request.ext);}catch(Exception e){warning="ویدیو ساخته شد، اما ذخیره در دانلودها انجام نشد؛ در برنامه دوباره ذخیره کن. "+error(e);}
-   publish("complete",request.frames,"ویدیو آماده است",result,download,warning);
-  }catch(Throwable e){if(result!=null)result.delete();publish(cancelled?"cancelled":"error",0,cancelled?"رندر لغو شد؛ فایل ناقص حذف شد.":error(e),null,null,null);}
-  finally{engine=null;try{RenderRequest.file(this,request.id).delete();}catch(Exception ignored){}main.post(this::finishService);}
+   try{download=new DownloadRepository(this).save(result,"video/"+job.ext,job.ext,()->cancelled);}catch(Exception e){warning=PublicErrors.SAVE_WARNING;}
+   if(cancelled)throw new IOException("رندر متوقف شد.");
+   publish("complete",job.frames,"ویدیو آماده است",result,download,warning);
+  }catch(Throwable e){if(result!=null)result.delete();publish(rendererError!=null?"error":cancelled?"cancelled":"error",0,rendererError!=null?rendererError:cancelled?"رندر لغو شد؛ فایل ناقص حذف شد.":error(e),null,null,null);}
+  finally{RenderEngine finished=engine;if(finished!=null&&!finished.cleanupComplete()){restartRequired=true;RenderQueue.pause(this);publish("error",0,"پردازش قبلی کاملاً متوقف نشده است؛ برنامه را توقف اجباری و دوباره باز کن.",null,null,null);}engine=null;workerRunning=false;draining=false;if(queueJob)RenderQueue.trimCache(this);try{RenderRequest.file(this,job.id).delete();}catch(Exception ignored){}main.post(this::finishService);}
  }
- private static String error(Throwable t){while(t.getCause()!=null&&t.getCause()!=t)t=t.getCause();if(t instanceof OutOfMemoryError)return "حافظهٔ کافی برای این اندازه نیست؛ اندازهٔ کوچک‌تری انتخاب کن.";return t.getMessage()==null?t.getClass().getSimpleName():t.getMessage();}
+ private static String error(Throwable t){return PublicErrors.message(t);}
  private synchronized void publish(String phase,int done,String message,File file,JSONObject download,String warning){
+  if(!alive||instance!=this||(timeoutStopping&&!phase.equals("error")))return;
   try{
    JSONObject s=new JSONObject().put("phase",phase).put("done",done).put("message",message).put("elapsedMs",Math.max(0,System.currentTimeMillis()-began));
    if(request!=null)s.put("id",request.id).put("total",request.frames).put("ext",request.ext).put("mime",request.mime).put("options",request.options());
-   if(file!=null)s.put("file",file.getAbsolutePath()).put("size",file.length());if(download!=null)s.put("download",download);if(warning!=null)s.put("warning",warning);
+   if(request!=null)s.put("estimatedBytes",RenderEstimates.bytes(request.frames,request.fps,request.bitrate,request.audio!=null)).put("remainingMs",phase.equals("rendering")?RenderEstimates.remainingMillis(done,request.frames,s.optLong("elapsedMs")):-1);
+   if(file!=null)s.put("file",file.getAbsolutePath()).put("size",file.length());if(download!=null)s.put("download",download);if(warning!=null)s.put("warning",warning);if(timeoutStopping)s.put("cleanupPending",true);
+   if(queueJob&&activeId!=null)RenderQueue.update(this,activeId,phase,done,message,!busy(s)||System.currentTimeMillis()-lastPersist>1000);
+   if(queueJob&&phase.equals("complete"))RenderQueue.saved(this,activeId,download!=null);
    final String json=s.toString();stateJson=json;long now=System.currentTimeMillis();boolean active=busy(s);
    if(!active||now-lastPersist>1000){getSharedPreferences("render_state",MODE_PRIVATE).edit().putString("last",json).apply();lastPersist=now;}
    if(!active||now-lastNotice>500){getSystemService(NotificationManager.class).notify(NOTIFICATION,notification(message,done,request==null?0:request.frames,active));lastNotice=now;}
@@ -67,9 +80,18 @@ public final class RenderService extends Service {
   return b.build();
  }
  private void cancelJob(){if(request==null||!busy(latest(this)))return;cancelled=true;RenderEngine e=engine;if(e!=null)e.cancel();JSONObject s=latest(this);publish("cancelling",s.optInt("done"),"در حال لغو رندر…",null,null,null);}
- private void finishService(){if(wake!=null&&wake.isHeld())wake.release();request=null;if(queued!=null&&alive){Intent next=queued;queued=null;onStartCommand(next,0,lastStartId);return;}if(alive){stopForeground(STOP_FOREGROUND_DETACH);stopSelfResult(lastStartId);}}
- @Override public void onTimeout(int startId,int type){cancelJob();finishService();}
+ private void finishService(){if(wake!=null&&wake.isHeld())wake.release();request=null;workerRunning=false;activeId=null;queueJob=false;if(queued!=null&&alive&&!timeoutStopping){Intent next=queued;queued=null;onStartCommand(next,0,lastStartId);return;}if(alive&&!timeoutStopping&&!restartRequired&&RenderQueue.waiting(this)){pendingCancel=false;pendingRendererError=false;onStartCommand(new Intent(this,RenderService.class).setAction("queue"),0,lastStartId);return;}if(alive){stopForeground(STOP_FOREGROUND_DETACH);stopSelfResult(lastStartId);}}
+ private void discard(Intent intent){if(intent==null)return;try{RenderRequest.file(this,intent.getStringExtra("job")).delete();}catch(Exception ignored){}}
+ @Override public void onTimeout(int startId,int type){
+  // Meet Android 15's short stop deadline; never clear the worker's request or join here.
+  timeoutStopping=true;cancelled=true;rendererError="مهلت پردازش پس‌زمینهٔ اندروید تمام شد؛ رندر متوقف شد. دوباره در برنامه اجرا کن.";
+  RenderEngine e=engine;if(e!=null)e.cancel();
+  if(request!=null&&busy(latest(this)))publish("error",0,rendererError,null,null,null);
+  RenderQueue.pause(this);discard(queued);queued=null;
+  if(wake!=null&&wake.isHeld())wake.release();
+  stopForeground(STOP_FOREGROUND_DETACH);stopSelf();
+ }
  @Override public void onTaskRemoved(Intent rootIntent){super.onTaskRemoved(rootIntent);}
- @Override public void onDestroy(){alive=false;cancelled=true;RenderEngine e=engine;if(e!=null)e.cancel();if(wake!=null&&wake.isHeld())wake.release();instance=null;super.onDestroy();}
+ @Override public void onDestroy(){if(workerRunning){draining=true;if(queueJob&&activeId!=null)RenderQueue.update(this,activeId,"error",0,"رندر قبلی با توقف فرایند برنامه قطع شد؛ دوباره اجرا کن.",true);}RenderQueue.pause(this);alive=false;cancelled=true;RenderEngine e=engine;if(e!=null)e.cancel();if(wake!=null&&wake.isHeld())wake.release();if(instance==this)instance=null;discard(queued);queued=null;super.onDestroy();}
  @Override public IBinder onBind(Intent intent){return null;}
 }

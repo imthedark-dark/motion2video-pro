@@ -1,37 +1,331 @@
 {
-  "fonts/amiri-Amiri-Bold.ttf": "cfccb794268e7d573d857e6d6a67f89cf8a053e8ffd85dfa0c8ec1bb36fc4827",
-  "fonts/amiri-Amiri-Regular.ttf": "ab391c4147d054c48976e98322ad0eefe1427aa0e0502a12a4c75d80a70cfcd7",
-  "fonts/amiri-OFL.txt": "72de68e5954f4fdd24702292ef5a32f003ca960ec9330dc86e5eefb5dffb9b22",
-  "fonts/anton-Anton-Regular.ttf": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
-  "fonts/anton-OFL.txt": "ee67e6ee22790b7929f1a3769ca2801d565c64b5a9096942c1adf5596de9c9e4",
-  "fonts/inter-Inter[opsz,wght].ttf": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
-  "fonts/inter-OFL.txt": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
-  "fonts/notonaskharabic-NotoNaskhArabic[wght].ttf": "67b5a525a661b607971fbd3f96a81b89d3a768e74534fca84f18ac97e6fab72f",
-  "fonts/notonaskharabic-OFL.txt": "a7a5a25eb188bf1cd96982030d53e23c33485c69b1044a562254226857ee13af",
-  "fonts/scheherazadenew-OFL.txt": "5b9fd21ce2377fc542debebd9edfe1c48f2d3525e78a2a8abdba4a0ec3280163",
-  "fonts/scheherazadenew-ScheherazadeNew-Regular.ttf": "794bac8dc9e83d1d620bc471ea694f5f31d0965ce8006490a79dfc51a2d283b3",
-  "fonts/vazirmatn-OFL.txt": "17e355067c8284f47743a1ee3b1ef7ff684ff0601eda357f9353b10b3016ab31",
-  "fonts/vazirmatn-Vazirmatn[wght].ttf": "696249a2c74b39ffdef55de4df2809c5b639d3ff80d618d8160a095d2fd49dca",
-  "fonts.css": "4f09cb02e32e92e29f700537cb5f1772f906198d517790d73553c6cdbbaf7c1f",
-  "gsap.min.js": "96c01b81f44a3290e2b4532f55e2c9534b2adc43273a19f3756b2cb41f0fd0b6",
-  "licenses/GSAP-STANDARD-LICENSE.txt": "7b42d58ec912743947bfd3b4c89a28c981f5f60dc5a93b7f4b80f249d2fa0128",
-  "licenses/Motion2Video-MIT.txt": "f20fe439352a4fc331202da00dd8bece3697b777375ea1a3f498db4e60580a66",
-  "licenses/lottie-web-MIT.txt": "9d8d4d8b4bb99572ee8b51025a30b8493d949798cac465c6c15b1b29420bcb06",
-  "licenses/tailwindcss-MIT.txt": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985",
-  "licenses/three-MIT.txt": "852e0e8699169bf9f6fdc6bda3e682d078dcbc738b5d33e74df594721bff271d",
-  "motion-clock.js": "cd331240fe0dd275695f9ed16fc294bf94a5f2e9c6704039f017c3b24bbf378f",
-  "preset.html": "86b03e860aa4638d559009798b4e78f9060f93050e66b0f6b0a604394ba53671",
-  "studio-gsap-3.12.5.min.js": "28033e449a31ebcc396e5be8b13b63152bf03094288fb5867034321927bce087",
-  "studio-tailwind-loader.js": "a9805631deef30f341f485dd88d2d93b8ed9710342272fd834bca3b94efe900a",
-  "studio-tailwind.css": "5fe2d0d19681c85f7c382634a3affe39ee6840ba62728d81b17112d2b7f47781",
-  "studio-tailwind.js": "176e894661aa9cdc9a5cba6c720044cbbf7b8bd80d1c9a142a7c24b1b6c50d15",
-  "studio.html": "fedb340d8f8a88270c9eda29cc5932bb13d03f0ed10efb8bba3a82c7c1387b15",
-  "vendor/DrawSVGPlugin.min.js": "d8f70b87c137f4b30f25c9fc3f7bda824dc070510888121b1199a1bf47624bbc",
-  "vendor/Flip.min.js": "d2d2f30a8771f814c8002c0c868efe9810640f13a693647297cfd8430c069c79",
-  "vendor/MorphSVGPlugin.min.js": "fe638800184406468075bdb59ef41ea264d5d3568fff5f68f3ce46bb132a02fe",
-  "vendor/MotionPathPlugin.min.js": "f984711c76037a734baf4dcaca214b381848bd6965ecd7d71491c57d7407b44f",
-  "vendor/SplitText.min.js": "5e519ea2470faa15ca4d4f27e9263e5906c07c034a9b4771164dee108136563a",
-  "vendor/lottie.min.js": "2eb762973aec914d981f426123040bfac9d26217239605e225ddc7cee17618ac",
-  "vendor/three.min.js": "170c6789f43217c96b3170f4b42fafe135de7f7cd48497a4218f9757ee1d49fa",
-  "vendor-manifest.json": "66136dcad43048871ce6839eef750197444ef204c745388eda452e1da98c448c"
+  "schema_version": 2,
+  "components": {
+    "project": {
+      "name": "Motion2Video original assets",
+      "version": "1.4.1",
+      "license": "MIT",
+      "source": "https://github.com/imthedark-dark/motion2video-pro",
+      "license_files": [
+        "licenses/Motion2Video-MIT.txt"
+      ]
+    },
+    "gsap-ui": {
+      "name": "GSAP UI Core",
+      "version": "3.12.5",
+      "license": "GSAP custom license",
+      "source": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js",
+      "license_files": [
+        "licenses/GSAP-STANDARD-LICENSE.txt"
+      ]
+    },
+    "gsap-motion": {
+      "name": "GSAP Core and plugins",
+      "version": "3.13.0",
+      "license": "GSAP custom license",
+      "source": "https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/",
+      "license_files": [
+        "licenses/GSAP-STANDARD-LICENSE.txt"
+      ]
+    },
+    "tailwind": {
+      "name": "Tailwind Play CDN and generated stylesheet",
+      "version": "3.4.17",
+      "license": "MIT",
+      "source": "https://github.com/tailwindlabs/tailwindcss/tree/v3.4.17",
+      "license_files": [
+        "licenses/tailwindcss-MIT.txt"
+      ]
+    },
+    "lottie": {
+      "name": "lottie-web",
+      "version": "5.13.0",
+      "license": "MIT",
+      "source": "https://cdn.jsdelivr.net/npm/lottie-web@5.13.0/build/player/lottie.min.js",
+      "license_files": [
+        "licenses/lottie-web-MIT.txt"
+      ]
+    },
+    "three": {
+      "name": "Three.js",
+      "version": "0.160.1",
+      "license": "MIT",
+      "source": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js",
+      "license_files": [
+        "licenses/three-MIT.txt"
+      ]
+    },
+    "androidx-notice": {
+      "name": "AndroidX Core license notice",
+      "version": "1.13.1",
+      "license": "Apache-2.0",
+      "source": "https://developer.android.com/jetpack/androidx/releases/core#1.13.1",
+      "license_files": [
+        "licenses/androidx-Apache-2.0.txt"
+      ]
+    },
+    "font-amiri": {
+      "name": "Amiri",
+      "version": "1.002",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/amiri",
+      "license_files": [
+        "fonts/amiri-OFL.txt"
+      ]
+    },
+    "font-anton": {
+      "name": "Anton",
+      "version": "2.116",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/anton",
+      "license_files": [
+        "fonts/anton-OFL.txt"
+      ]
+    },
+    "font-inter": {
+      "name": "Inter",
+      "version": "4.001",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/inter",
+      "license_files": [
+        "fonts/inter-OFL.txt"
+      ]
+    },
+    "font-notonaskharabic": {
+      "name": "Noto Naskh Arabic",
+      "version": "2.021",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/notonaskharabic",
+      "license_files": [
+        "fonts/notonaskharabic-OFL.txt"
+      ]
+    },
+    "font-scheherazadenew": {
+      "name": "Scheherazade New",
+      "version": "4.500",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/scheherazadenew",
+      "license_files": [
+        "fonts/scheherazadenew-OFL.txt"
+      ]
+    },
+    "font-vazirmatn": {
+      "name": "Vazirmatn",
+      "version": "33.003",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/vazirmatn",
+      "license_files": [
+        "fonts/vazirmatn-OFL.txt"
+      ]
+    },
+    "font-orbitron": {
+      "name": "Orbitron",
+      "version": "2.001",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/orbitron",
+      "license_files": [
+        "fonts/orbitron-OFL.txt"
+      ]
+    }
+  },
+  "assets": {
+    "fonts/amiri-Amiri-Bold.ttf": {
+      "component": "font-amiri",
+      "sha256": "cfccb794268e7d573d857e6d6a67f89cf8a053e8ffd85dfa0c8ec1bb36fc4827",
+      "bytes": 413480
+    },
+    "fonts/amiri-Amiri-Regular.ttf": {
+      "component": "font-amiri",
+      "sha256": "ab391c4147d054c48976e98322ad0eefe1427aa0e0502a12a4c75d80a70cfcd7",
+      "bytes": 431116
+    },
+    "fonts/amiri-OFL.txt": {
+      "component": "font-amiri",
+      "sha256": "72de68e5954f4fdd24702292ef5a32f003ca960ec9330dc86e5eefb5dffb9b22",
+      "bytes": 4389
+    },
+    "fonts/anton-Anton-Regular.ttf": {
+      "component": "font-anton",
+      "sha256": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
+      "bytes": 170812
+    },
+    "fonts/anton-OFL.txt": {
+      "component": "font-anton",
+      "sha256": "ee67e6ee22790b7929f1a3769ca2801d565c64b5a9096942c1adf5596de9c9e4",
+      "bytes": 4484
+    },
+    "fonts/inter-Inter[opsz,wght].ttf": {
+      "component": "font-inter",
+      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+      "bytes": 876576
+    },
+    "fonts/inter-OFL.txt": {
+      "component": "font-inter",
+      "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
+      "bytes": 4377
+    },
+    "fonts/notonaskharabic-NotoNaskhArabic[wght].ttf": {
+      "component": "font-notonaskharabic",
+      "sha256": "67b5a525a661b607971fbd3f96a81b89d3a768e74534fca84f18ac97e6fab72f",
+      "bytes": 307592
+    },
+    "fonts/notonaskharabic-OFL.txt": {
+      "component": "font-notonaskharabic",
+      "sha256": "a7a5a25eb188bf1cd96982030d53e23c33485c69b1044a562254226857ee13af",
+      "bytes": 4382
+    },
+    "fonts/scheherazadenew-OFL.txt": {
+      "component": "font-scheherazadenew",
+      "sha256": "5b9fd21ce2377fc542debebd9edfe1c48f2d3525e78a2a8abdba4a0ec3280163",
+      "bytes": 4495
+    },
+    "fonts/scheherazadenew-ScheherazadeNew-Regular.ttf": {
+      "component": "font-scheherazadenew",
+      "sha256": "794bac8dc9e83d1d620bc471ea694f5f31d0965ce8006490a79dfc51a2d283b3",
+      "bytes": 331504
+    },
+    "fonts/vazirmatn-OFL.txt": {
+      "component": "font-vazirmatn",
+      "sha256": "17e355067c8284f47743a1ee3b1ef7ff684ff0601eda357f9353b10b3016ab31",
+      "bytes": 4391
+    },
+    "fonts/vazirmatn-Vazirmatn[wght].ttf": {
+      "component": "font-vazirmatn",
+      "sha256": "696249a2c74b39ffdef55de4df2809c5b639d3ff80d618d8160a095d2fd49dca",
+      "bytes": 241328
+    },
+    "fonts.css": {
+      "component": "project",
+      "sha256": "035907dbb8dcc741b8a4de3389006d27e4f612145575f693f4e7ae131326119b",
+      "bytes": 1060
+    },
+    "gsap.min.js": {
+      "component": "gsap-motion",
+      "sha256": "96c01b81f44a3290e2b4532f55e2c9534b2adc43273a19f3756b2cb41f0fd0b6",
+      "bytes": 72435,
+      "version_marker": "3.13.0"
+    },
+    "licenses/GSAP-STANDARD-LICENSE.txt": {
+      "component": "gsap-motion",
+      "sha256": "7b42d58ec912743947bfd3b4c89a28c981f5f60dc5a93b7f4b80f249d2fa0128",
+      "bytes": 3718
+    },
+    "licenses/Motion2Video-MIT.txt": {
+      "component": "project",
+      "sha256": "f20fe439352a4fc331202da00dd8bece3697b777375ea1a3f498db4e60580a66",
+      "bytes": 1061
+    },
+    "licenses/androidx-Apache-2.0.txt": {
+      "component": "androidx-notice",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    "licenses/lottie-web-MIT.txt": {
+      "component": "lottie",
+      "sha256": "9d8d4d8b4bb99572ee8b51025a30b8493d949798cac465c6c15b1b29420bcb06",
+      "bytes": 1075
+    },
+    "licenses/tailwindcss-MIT.txt": {
+      "component": "tailwind",
+      "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985",
+      "bytes": 1071
+    },
+    "licenses/three-MIT.txt": {
+      "component": "three",
+      "sha256": "852e0e8699169bf9f6fdc6bda3e682d078dcbc738b5d33e74df594721bff271d",
+      "bytes": 1081
+    },
+    "motion-clock.js": {
+      "component": "project",
+      "sha256": "cd331240fe0dd275695f9ed16fc294bf94a5f2e9c6704039f017c3b24bbf378f",
+      "bytes": 3259
+    },
+    "preset.html": {
+      "component": "project",
+      "sha256": "86b03e860aa4638d559009798b4e78f9060f93050e66b0f6b0a604394ba53671",
+      "bytes": 1536
+    },
+    "studio-gsap-3.12.5.min.js": {
+      "component": "gsap-ui",
+      "sha256": "28033e449a31ebcc396e5be8b13b63152bf03094288fb5867034321927bce087",
+      "bytes": 72214,
+      "version_marker": "GSAP 3.12.5"
+    },
+    "studio-tailwind-loader.js": {
+      "component": "tailwind",
+      "sha256": "a9805631deef30f341f485dd88d2d93b8ed9710342272fd834bca3b94efe900a",
+      "bytes": 5106
+    },
+    "studio-tailwind.css": {
+      "component": "tailwind",
+      "sha256": "5fe2d0d19681c85f7c382634a3affe39ee6840ba62728d81b17112d2b7f47781",
+      "bytes": 4913
+    },
+    "studio-tailwind.js": {
+      "component": "tailwind",
+      "sha256": "176e894661aa9cdc9a5cba6c720044cbbf7b8bd80d1c9a142a7c24b1b6c50d15",
+      "bytes": 407279,
+      "version_marker": "3.4.17"
+    },
+    "studio.html": {
+      "component": "project",
+      "sha256": "067aaa7ca73a3e810ac38da80eb16e36d4f0e35f745d97116a007db638dfaef2",
+      "bytes": 171244
+    },
+    "vendor/DrawSVGPlugin.min.js": {
+      "component": "gsap-motion",
+      "sha256": "d8f70b87c137f4b30f25c9fc3f7bda824dc070510888121b1199a1bf47624bbc",
+      "bytes": 4351,
+      "version_marker": "3.13.0"
+    },
+    "vendor/Flip.min.js": {
+      "component": "gsap-motion",
+      "sha256": "d2d2f30a8771f814c8002c0c868efe9810640f13a693647297cfd8430c069c79",
+      "bytes": 25013,
+      "version_marker": "3.13.0"
+    },
+    "vendor/MorphSVGPlugin.min.js": {
+      "component": "gsap-motion",
+      "sha256": "fe638800184406468075bdb59ef41ea264d5d3568fff5f68f3ce46bb132a02fe",
+      "bytes": 16603,
+      "version_marker": "3.13.0"
+    },
+    "vendor/MotionPathPlugin.min.js": {
+      "component": "gsap-motion",
+      "sha256": "f984711c76037a734baf4dcaca214b381848bd6965ecd7d71491c57d7407b44f",
+      "bytes": 21712,
+      "version_marker": "3.13.0"
+    },
+    "vendor/SplitText.min.js": {
+      "component": "project",
+      "sha256": "5e519ea2470faa15ca4d4f27e9263e5906c07c034a9b4771164dee108136563a",
+      "bytes": 7247
+    },
+    "vendor/lottie.min.js": {
+      "component": "lottie",
+      "sha256": "2eb762973aec914d981f426123040bfac9d26217239605e225ddc7cee17618ac",
+      "bytes": 305704,
+      "version_marker": "lottie.version=\"5.13.0\""
+    },
+    "vendor/three.min.js": {
+      "component": "three",
+      "sha256": "170c6789f43217c96b3170f4b42fafe135de7f7cd48497a4218f9757ee1d49fa",
+      "bytes": 669884
+    },
+    "vendor-manifest.json": {
+      "component": "project",
+      "sha256": "66136dcad43048871ce6839eef750197444ef204c745388eda452e1da98c448c",
+      "bytes": 1156
+    },
+    "fonts/orbitron-OFL.txt": {
+      "component": "font-orbitron",
+      "sha256": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
+      "bytes": 4426
+    },
+    "fonts/orbitron-Orbitron[wght].ttf": {
+      "component": "font-orbitron",
+      "sha256": "f42db2dd16e642258e35782916eceb1dcdbea06fb958d77ad71dc5963587e8fd",
+      "bytes": 38576
+    }
+  }
 }

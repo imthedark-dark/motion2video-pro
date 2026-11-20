@@ -4,7 +4,7 @@
   "private": true,
   "description": "Motion2Video Pro \u2014 Dark",
   "scripts": {
-    "test:ui": "node tests/studio-ui.cjs",
+    "test:ui": "node tests/studio-ui.cjs && node tests/security.cjs && node tests/animation-compat.cjs && node tests/motion-video-fixture.cjs",
     "test:clock": "node tests/motion-clock.cjs"
   },
   "devDependencies": {

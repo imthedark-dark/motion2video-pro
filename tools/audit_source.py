@@ -24,7 +24,7 @@ for name in files:
  p=ROOT/name
  if not p.is_file():continue
  if p.is_symlink():issues.append((name,'symlink must be reviewed'));continue
- if p.suffix.lower() in {'.jks','.keystore','.key','.pem','.p12','.pfx','.pk8','.p8'} or p.name in {'local.properties','.npmrc','.netrc','.pypirc'} or p.name=='.env' or (p.name.startswith('.env.') and p.name!='.env.example'):
+ if p.suffix.lower() in {'.jks','.keystore','.key','.pem','.p12','.pfx','.pk8','.p8','.apk','.aab'} or p.name in {'local.properties','.npmrc','.netrc','.pypirc'} or (p.name.startswith('release-signing') and p.suffix=='.properties') or p.name=='.env' or (p.name.startswith('.env.') and p.name!='.env.example'):
   issues.append((name,'private/local file'));continue
  raw=p.read_bytes()
  if b'\0' in raw:continue

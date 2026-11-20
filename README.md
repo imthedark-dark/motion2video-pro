@@ -48,7 +48,7 @@ animation.html  →  preview  →  frame-by-frame render  →  video.mp4
 2. **Preview and configure:** check the motion, duration, size, frame rate, and codec.
 3. **Render:** start the job, then switch apps if needed. Check its notification or return to the app for the result and saved path.
 
-> Android 8 or later is required. The signed APK and its checksum are also available in [`downloads`](downloads). Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1), or build it from source.
+> Android 8 or later is required. APKs and SHA-256 manifests are distributed through GitHub Releases; binaries are no longer committed on this branch. Get the signed debug APK from the [release page](https://github.com/imthedark-dark/motion2video-pro/releases/tag/v1.4.1), or build it from source.
 
 <a id="downloads"></a>
 ## Your exports, together
@@ -62,6 +62,16 @@ Download/
 **My Downloads** lists the name, path, size, and date of exports registered by this app. Open a file in a compatible player, or open its folder with a compatible file manager. If opening the specific folder is unsupported, the app falls back to system Downloads. The list persists after closing the app.
 
 Android 10+ uses MediaStore.Downloads. Android 8 and 9 require storage permission. VP8/VP9 exports keep their actual `.webm` extension.
+
+## Security hardening — Phase 1 review
+
+On `security/phase-1`, imported content is offline by default. Allow online resources requires Persian confirmation; enabling it lets user code contact HTTPS servers. Bundled native libraries/fonts remain local. Separate WebViews, a closed MessagePort schema, early CSP, explicit safety settings and renderer-loss cleanup harden the boundary. See [audit findings](docs/AUDIT_REPORT.md), [decisions](docs/DECISIONS.md) and [security checks/limits](docs/PHASE1_SECURITY.md). This source work is not yet in the published v1.4.1 APK; Physical-device acceptance remains unverified; subsequent Phase 2 emulator checks are recorded below.
+
+## Android hardening — Phase 2 review
+
+`security/phase-2` adds narrow, read-only AndroidX FileProvider URIs, explicit network security, permission-denial notices and safe foreground-service timeout cleanup. Debug and non-debuggable, R8/resource-shrunk release builds use the checked Gradle wrapper through `python3 build.py` (`--release` creates an unsigned release). Use a full JDK 17; initial dependency downloads need network access.
+
+The minified release rendered/saved/played a 360p30 H.264 sample on an Android 11 emulator; native FileProvider, timeout and renderer-loss checks passed. Physical devices and actual Android 15 quota dispatch remain unverified. See [Phase 2 details](docs/PHASE2_ANDROID.md) and [audit evidence](docs/AUDIT_REPORT.md). Published APKs are unchanged.
 
 ## Background rendering and speed
 
@@ -83,7 +93,7 @@ In one desktop JVM test, converting thirty 720p frames took 152.7ms in the origi
 | Typography | Vazirmatn, Amiri, Noto Naskh Arabic, Scheherazade New, Anton, Inter |
 | Optional desktop path | FFmpeg conversion and audio mixing |
 
-Android export is currently **silent**. HEVC/AV1 and VP8/VP9 depend on device capabilities. ProRes/MOV/alpha export is not implemented in the APK. Selecting 1080p or 60fps does not guarantee that every device supports that combination.
+Android export defaults to **silent**; unreleased Phase 6 adds optional AAC audio for MP4 (see below). HEVC/AV1 and VP8/VP9 depend on device capabilities. ProRes/MOV/alpha export is not implemented in the APK. Selecting 1080p or 60fps does not guarantee that every device supports that combination.
 
 <a id="build"></a>
 ## Build from source
@@ -163,3 +173,43 @@ This README takes visual inspiration from **Wow Profile**, featured in the [GitS
 **Dark** · Code in. Motion out.
 
 </div>
+
+### Phase 3 security review
+
+HTML imports now allow up to 20 MiB with filename/MIME checks and strict UTF-8 decoding. Render settings are validated at each boundary. Memory preflight, a periodic heap/system-memory watchdog, two-hour render deadline and cancellable script waits stop oversized or stalled jobs without changing frame timing or quality. See [limits and reproducible checks](docs/PHASE3_INPUT.md). Renderer/GPU memory and blocked platform calls cannot be fully bounded by the app. This review branch does not replace published APKs.
+
+Phase 3 builds and host checks pass. Native acceptance is pending: the test emulator's system process/ActivityManager failed before instrumentation startup; physical phones were not tested.
+
+### Phase 4 release and supply-chain review
+
+Release signing is explicit (`python3 build.py --release --sign`) and reads environment settings or ignored local properties; debug and unsigned contributor builds remain available. APK versioned filenames come from Gradle output metadata. APK binaries are removed from this branch; existing tags/Release assets stay unchanged. Actions are pinned to full SHAs with read-only permissions by default (only an explicit guarded publication job can write Releases), Dependabot covers npm/Gradle/Actions, CI audits npm and runs isolated OWASP Dependency-Check, and schema-2 bundled version/hash/license checks reject drift. See [release process](docs/RELEASE.md), [security reporting status](SECURITY.md) and [license concerns](docs/LICENSING.md). No production release or completed native acceptance is implied.
+
+Remaining setup: private vulnerability reporting is still disabled after GitHub403; an owner must enable it. The full OWASP scan is blocked by NVD/CISA feed access, so no clean dependency-scan result is claimed.
+
+### Phase 5 privacy review
+
+Native rendering has no project-owned upload service, analytics or crash-reporting SDK. WebView console forwarding is suppressed, public errors use reviewed fixed messages, and the manifest requests WebView metrics opt-out while keeping Safe Browsing enabled. Desktop FFmpeg diagnostics are off unless `--debug` is chosen. Drafts/cache/history remain local; Downloads remain outside private app storage.
+
+Explicit online resources can send content, standalone HTML loads CDNs, and OS/provider behavior is separate. Read the [Persian/English privacy policy](PRIVACY.md) and [evidence/limits](docs/PHASE5_PRIVACY.md). These source/host checks do not establish zero device traffic; native logging/network acceptance is still pending. No new public APK was published.
+
+### Phase 6 features (unreleased)
+
+Existing Release APKs do not include these changes. Phase6 feature work is isolated on feature/phase-6; capability proposals are shown before rendering and applied only by the user. Accepted phases remain frozen on security/phase-5. See [feature audit](docs/PHASE6_FEATURES.md).
+
+Registered exports now have a Share action using the narrow read-only FileProvider and Android chooser. If a file was moved/deleted or direct access is unavailable, re-export or use the Downloads manager.
+
+Explicit Story/Reels, YouTube and Square size presets are available. Up to 20 named project settings are stored on this device; animation HTML, audio files and online permission are excluded. Defaults remain 1280×720, 60 FPS, 16 Mbps, H.264.
+
+Optional source start/end ranges are validated against the configured/detected animation duration. Full-range export is unchanged; selected ranges keep output PTS at zero and round frame count at the selected fps.
+
+The studio estimates encoded size before rendering and remaining frame-render time from measured progress. Previous same-profile render speed is retained locally for a rough preflight estimate. Estimates are not guarantees and exclude unpredictable loading/audio/save delays.
+
+Optional Android audio accepts MP3/AAC/WAV/M4A (≤100 MiB, ≤30 min, mono/stereo, device decoder dependent). Trim, volume and fades feed streaming 48kHz stereo PCM16 and AAC-LC 192kbps; a separate MP4 remux preserves encoded video samples/PTS. Short audio pads with silence. WebM audio and >2 channels/non-PCM16 decoded formats fail clearly; silent output stays the default. Temporary audio assets (≤8, ≤160 MiB total) can be cleared in-app when idle. Native A/V acceptance remains pending.
+
+Batch render queue: choose up to 8 HTML files (≤60 MiB source total) with an immutable snapshot of current settings for each job. The existing foreground service runs one at a time; ordinary job failure/cancel continues the rest. Pending jobs can be cancelled individually. Process death/Android quota pauses waiting jobs until Resume; prior-session online permission is never restored automatically. Queue history is capped at 24, and old private previews may be evicted (approximately 1 GiB queue cache target); saved Downloads remain independent.
+
+Queue retention detail: the ~1GiB private-preview target evicts only outputs already saved to public Downloads. Unsaved outputs are retained while in the bounded history (up to 24); they remain temporary Android cache and can still be lost to cache clearing/eviction. Queue jobs preflight estimated disk space; missing storage permission does not silently mark a video saved.
+
+### Offline Google Fonts on Android
+
+The Studio shows a Persian font summary before preview or export. For missing faces referenced by a static Google Fonts stylesheet, the native dialog can download a copy to private storage for later offline use. Use **فونت‌ها** to see the size, delete fonts, clear approvals or disable the feature. [Font consent, limits and privacy](docs/FONTS.md)

@@ -1,0 +1,12 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><style>#box{width:20px;height:20px;background:#ff3b00;animation:move 1s both}@keyframes move{to{transform:translateX(100px)}} </style>
+<script src="https://security-test.invalid/script.js"></script><link rel="stylesheet" href="https://security-test.invalid/style.css"></head><body><div id="box">آزمون</div><img src="https://security-test.invalid/image.svg"><iframe src="https://security-test.invalid/frame"></iframe>
+<script>
+window.probe={violations:[]};
+addEventListener('securitypolicyviolation',e=>window.probe.violations.push({directive:e.effectiveDirective,blocked:e.blockedURI}));
+try{window.probe.rtc=typeof RTCPeerConnection}catch(_){window.probe.rtc='blocked'}
+try{window.probe.beacon=navigator.sendBeacon('https://security-test.invalid/beacon','test')}catch(_){window.probe.beacon=false}
+if(typeof RTCPeerConnection==='undefined')try{new WebSocket('wss://security-test.invalid/socket')}catch(_){}
+try{new Worker('https://security-test.invalid/worker.js')}catch(_){}
+window.probe.javaBridge=typeof window.Android!=='undefined'||typeof window.MotionNative!=='undefined';
+Promise.allSettled([fetch('https://security-test.invalid/fetch',{method:'POST',body:'SYNTHETIC_PRIVACY_FIXTURE_ONLY'}).then(r=>r.text()),new Promise(resolve=>{const x=new XMLHttpRequest();x.open('GET','https://security-test.invalid/xhr');x.onload=()=>resolve(true);x.onerror=()=>resolve(false);x.send()})]).then(r=>{window.probe.fetch=r[0].status==='fulfilled';window.probe.xhr=r[1].value===true;window.probe.done=true});
+</script></body></html>

@@ -1,0 +1,24 @@
+package dev.motion2video.test;
+import android.app.*;import android.content.*;import android.content.pm.*;import android.media.*;import android.net.*;import android.os.*;import android.security.NetworkSecurityPolicy;import android.view.*;import android.webkit.*;import org.json.*;import java.io.*;import java.util.concurrent.*;
+/** Exercises a minified release through SDK/UI surfaces; no app field/class reflection. */
+public final class ReleaseSmokeTest extends Instrumentation {
+ private WebView studio;
+ private WebView find(View v){if(v instanceof WebView){String u=((WebView)v).getUrl();if(u!=null&&u.startsWith("https://studio.motion.local"))return (WebView)v;}if(v instanceof ViewGroup)for(int i=0;i<((ViewGroup)v).getChildCount();i++){WebView w=find(((ViewGroup)v).getChildAt(i));if(w!=null)return w;}return null;}
+ private String js(String code)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();runOnMainSync(()->studio.evaluateJavascript(code,f::complete));return f.get(120,TimeUnit.SECONDS);}
+ private void require(boolean value,String message)throws Exception{if(!value)throw new Exception(message);}
+ @Override public void onCreate(Bundle b){super.onCreate(b);start();}
+ @Override public void onStart(){Bundle out=new Bundle();try{
+  Context c=getTargetContext();require((c.getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)==0,"Expected non-debuggable release");require(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("example.com"),"Cleartext allowed");
+  Activity a=startActivitySync(new Intent().setClassName(c,"dev.motion2video.app.StudioActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));runOnMainSync(()->studio=find(a.getWindow().getDecorView()));require(studio!=null,"Studio WebView missing");
+  long limit=System.currentTimeMillis()+300000;while(!"true".equals(js("!!(window.MotionStudio&&MotionStudio.state().native)"))){if(System.currentTimeMillis()>limit)throw new Exception("Release native bridge timeout");Thread.sleep(1000);}
+  String html="<!doctype html><html lang='fa' dir='rtl'><head><style>body{margin:0;background:#111;color:#f3efea;text-align:center;font-family:Vazirmatn}#ball{position:absolute;left:20px;bottom:20px;width:30px;height:30px;background:#ff3b00;animation:move 1s both}@keyframes move{to{transform:translateX(100px)}}</style></head><body><h1>آزمون نسخهٔ انتشار</h1><div id='ball'></div></body></html>";
+  js("document.getElementById('introCurtain').hidden=true;document.querySelectorAll('.orb,.grain').forEach(e=>e.style.display='none');if(window.gsap)gsap.killTweensOf('.orb-a,.orb-b,.keyframe-dot');document.getElementById('code').value="+JSONObject.quote(html)+";document.getElementById('duration').value='1';document.getElementById('fps').value='30';document.getElementById('size').value='640x360';document.getElementById('bitrate').value='12000000';MotionStudio.render();true");
+  limit=System.currentTimeMillis()+360000;while(!"true".equals(js("!document.getElementById('resultCard').hidden&&document.getElementById('outputVideo').readyState>=2&&!document.getElementById('savedDetails').hidden"))){if(System.currentTimeMillis()>limit)throw new Exception("Release export/save/playback did not complete");Thread.sleep(1000);}
+  String path=(String)new JSONTokener(js("document.getElementById('savedPath').textContent")).nextValue();String name=path.substring(path.lastIndexOf('/')+1);Uri uri=Uri.parse("content://"+c.getPackageName()+".downloads/file/"+name);
+  require("video/mp4".equals(c.getContentResolver().getType(uri)),"FileProvider MIME incorrect");
+  File copy=new File(c.getFilesDir(),"release-smoke.mp4");try(InputStream in=c.getContentResolver().openInputStream(uri);OutputStream output=new FileOutputStream(copy)){byte[] bytes=new byte[65536];int n;while((n=in.read(bytes))!=-1)output.write(bytes,0,n);}
+  MediaExtractor ex=new MediaExtractor();int count=0;try{ex.setDataSource(copy.getAbsolutePath());int video=-1;for(int i=0;i<ex.getTrackCount();i++)if("video/avc".equals(ex.getTrackFormat(i).getString(MediaFormat.KEY_MIME)))video=i;require(video>=0,"Not H.264");MediaFormat f=ex.getTrackFormat(video);require(f.getInteger(MediaFormat.KEY_WIDTH)==640&&f.getInteger(MediaFormat.KEY_HEIGHT)==360,"Output dimensions changed");ex.selectTrack(video);while(ex.getSampleTime()>=0){count++;ex.advance();}require(count==30,"Output frame count changed");}finally{ex.release();}
+  try{ParcelFileDescriptor fd=c.getContentResolver().openFileDescriptor(uri,"w");if(fd!=null)fd.close();throw new Exception("FileProvider allowed writing");}catch(FileNotFoundException|SecurityException expected){}
+  out.putString("result","PASS");out.putInt("frames",count);out.putBoolean("releaseBridgeAndRender",true);out.putBoolean("readOnlyFileProvider",true);finish(Activity.RESULT_OK,out);
+ }catch(Throwable e){out.putString("result","FAIL");out.putString("error",e.getMessage());finish(Activity.RESULT_CANCELED,out);}}
+}

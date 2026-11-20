@@ -17,11 +17,14 @@ import java.util.concurrent.*;
  * visible independently of the Activity. No overlay or screen-capture permission.
  */
 final class OffscreenStage implements AutoCloseable {
+ private final FontCache.Scope fonts;
  private final Context context;private final RenderRequest request;private final Handler main=new Handler(Looper.getMainLooper());
  private VirtualDisplay display;private ImageReader sink;private Presentation window;private WebView web;private WebMessagePort clock;
- private volatile boolean closed,attached;private boolean pageFinished;private Capture pending;
+ private final CompletableFuture<Void> released=new CompletableFuture<>();
+ private volatile IOException rendererFailure;
+ private volatile boolean closed,attached;private boolean pageFinished;private volatile Capture pending;private volatile CompletableFuture<String> pendingJs;private final java.util.Set<Bitmap> copying=java.util.concurrent.ConcurrentHashMap.newKeySet();
  private static final class Capture{final int token;final Bitmap bitmap;final CompletableFuture<Void> done=new CompletableFuture<>();Capture(int t,Bitmap b){token=t;bitmap=b;}}
- OffscreenStage(Context context,RenderRequest request)throws Exception{this.context=context;this.request=request;onMain(()->{create();return null;});}
+ OffscreenStage(Context context,RenderRequest request)throws Exception{this.context=context;this.request=request;fonts=AppFonts.scope(context,FontDiscovery.scan(request.html),true);try{onMain(()->{if(!closed)create();return null;});}catch(Exception e){closed=true;main.post(this::closeNow);throw e;}}
  private <T>T onMain(Callable<T> action)throws Exception{if(Looper.myLooper()==Looper.getMainLooper())return action.call();FutureTask<T> task=new FutureTask<>(action);main.post(task);return task.get(45,TimeUnit.SECONDS);}
  private void create()throws Exception{
   try{
@@ -36,50 +39,83 @@ final class OffscreenStage implements AutoCloseable {
    window.getWindow().setBackgroundDrawableResource(android.R.color.black);
    web=new WebView(window.getContext());web.setBackgroundColor(Color.BLACK);web.setLayerType(request.gpu?View.LAYER_TYPE_HARDWARE:View.LAYER_TYPE_SOFTWARE,null);
    WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setDomStorageEnabled(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);settings.setMediaPlaybackRequiresUserGesture(true);
+   PrivateWebChromeClient diagnostics=WebViewSecurity.configure(web,context,false);WebViewSecurity.network(web,request.onlineResources);
    web.setWebViewClient(new WebViewClient(){
-    @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){return StageAssets.response(context,r.getUrl());}
+    @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest requestInfo){
+     Uri url=requestInfo.getUrl();
+     WebResourceResponse response=StageAssets.response(context,url,request.onlineResources,notice->{
+      if((notice&StageAssets.FONT_BLOCKED)!=0)diagnostics.blocked(url);
+     },fonts);
+     if(response!=null&&response.getStatusCode()==403)diagnostics.blocked(url);
+     return response;
+    }
+    @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){WebViewSecurity.rendererExit(v,context,detail,request.onlineResources,false);if(rendererFailure==null)rendererFailure=new IOException(WebViewSecurity.RENDERER_ERROR);if(!closed)RenderService.rendererGone(context);closeNow();return true;}
     @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
     @Override public void onPageFinished(WebView v,String url){
      if(closed||pageFinished)return;pageFinished=true;
      WebMessagePort[] ports=web.createWebMessageChannel();clock=ports[0];
      clock.setWebMessageCallback(new WebMessagePort.WebMessageCallback(){@Override public void onMessage(WebMessagePort p,WebMessage m){
-      if(closed)return;String text=m.getData();if("attached".equals(text)){attached=true;return;}
+      if(closed)return;String text=m.getData();if(text==null||text.length()>32)return;if("attached".equals(text)){attached=true;return;}
       Capture capture=pending;if(capture==null||!String.valueOf(capture.token).equals(text))return;
       web.postVisualStateCallback(capture.token,new WebView.VisualStateCallback(){@Override public void onComplete(long token){if(closed||pending!=capture)return;draw(capture);}});
      }});
      web.postWebMessage(new WebMessage("motion-clock-port-v1",new WebMessagePort[]{ports[1]}),Uri.parse("https://motion.local"));
-     web.evaluateJavascript("window.__m2vReady=false;Promise.all([document.fonts?document.fonts.ready:Promise.resolve(),...['Vazirmatn','Amiri','Noto Naskh Arabic','Scheherazade New','Anton','Inter'].map(f=>document.fonts.load('16px '+JSON.stringify(f))),...Array.from(document.images).map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=i.onerror=r}))]).then(()=>{window.__m2vReady=true});",null);
+     web.evaluateJavascript(ImportedContent.READY_SCRIPT,null);
     }
    });
    FrameLayout root=new FrameLayout(window.getContext());root.setBackgroundColor(Color.BLACK);root.addView(web,new FrameLayout.LayoutParams(-1,-1));window.setContentView(root);window.show();window.getWindow().setLayout(request.width,request.height);
    String code=request.html.replaceAll("(?i)inset\\s*:\\s*0(?:px)?\\s*;","top:0;right:0;bottom:0;left:0;inset:0;");
-   String injection="<script>window.__m2vReady=false;</script><script>"+StageAssets.text(context,"motion-clock.js")+"</script><style>"+StageAssets.text(context,"fonts.css")+"</style>";
-   int head=code.toLowerCase(java.util.Locale.ROOT).indexOf("</head>");code=head>=0?code.substring(0,head)+injection+code.substring(head):injection+code;
-   web.loadDataWithBaseURL("https://motion.local/",code,"text/html","UTF-8",null);
+   web.loadDataWithBaseURL("https://motion.local/",ImportedContent.prepare(code,StageAssets.text(context,"motion-clock.js"),StageAssets.text(context,"fonts.css")+(fonts==null?"":fonts.css(fonts.families())),"",request.onlineResources),"text/html","UTF-8",null);
   }catch(Throwable e){closeNow();throw new IOException("ساخت محیط مستقل رندر انجام نشد: "+e.getClass().getSimpleName(),e);}
  }
- private String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();main.post(()->{if(closed){f.completeExceptionally(new IOException("رندر بسته شد."));return;}web.evaluateJavascript(script,f::complete);});return f.get(45,TimeUnit.SECONDS);}
+ private String js(String script)throws Exception{CompletableFuture<String> f=new CompletableFuture<>();pendingJs=f;main.post(()->{if(closed){f.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));return;}web.evaluateJavascript(script,f::complete);});try{return f.get(RenderBudget.STALL_MS,TimeUnit.MILLISECONDS);}catch(TimeoutException e){IOException timeout=new IOException("اجرای کد موشن در زمان مجاز پاسخ نداد.",e);abort(timeout,true);throw timeout;}finally{if(pendingJs==f)pendingJs=null;}}
  void awaitReady(java.util.function.BooleanSupplier cancelled)throws Exception{
-  long end=System.currentTimeMillis()+120000;
-  while(true){if(cancelled.getAsBoolean())throw new IOException("رندر لغو شد.");if(System.currentTimeMillis()>end)throw new IOException("HTML، قلم‌ها یا اتصال ساعت رندر آماده نشد.");
-   if(attached&&"true".equals(js("window.__m2vReady===true&&(!window.lottie||!lottie.getRegisteredAnimations||lottie.getRegisteredAnimations().every(a=>a.isLoaded))"))&&onMain(()->web.getWidth()==request.width&&web.getHeight()==request.height))return;
+  long end=SystemClock.elapsedRealtime()+RenderBudget.READY_MS;
+  while(true){if(rendererFailure!=null)throw rendererFailure;if(cancelled.getAsBoolean())throw new IOException("رندر لغو شد.");if(SystemClock.elapsedRealtime()>end)throw new IOException("HTML، قلم‌ها یا اتصال ساعت رندر آماده نشد.");
+   if(attached){
+    String ready=js(ImportedContent.CONTEXT_CHECK+"?2:(window.__m2vReady===true&&(!window.lottie||!lottie.getRegisteredAnimations||lottie.getRegisteredAnimations().every(a=>a.isLoaded))?1:0)");
+    if("2".equals(ready))throw new IOException(ImportedContent.CONTEXT_ERROR);
+    if("1".equals(ready)&&onMain(()->web.getWidth()==request.width&&web.getHeight()==request.height))return;
+   }
    Thread.sleep(100);
   }
  }
  void capture(double time,int token,Bitmap target)throws Exception{
   Capture c=new Capture(token,target);main.post(()->{
-   if(closed){c.done.completeExceptionally(new IOException("رندر بسته شد."));return;}
-   pending=c;web.evaluateJavascript("window.__m2vSeek("+time+","+token+")",value->{if(!"true".equals(value))c.done.completeExceptionally(new IOException("کنترل زمان موشن خطا داد."));});
+   if(closed){c.done.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));return;}
+   pending=c;web.evaluateJavascript(ImportedContent.CONTEXT_CHECK+"?2:window.__m2vSeek("+time+","+token+")",value->{if(!"true".equals(value))c.done.completeExceptionally(new IOException("2".equals(value)?ImportedContent.CONTEXT_ERROR:"کنترل زمان موشن خطا داد."));});
   });
-  c.done.get(45,TimeUnit.SECONDS);
+  try{c.done.get(RenderBudget.STALL_MS,TimeUnit.MILLISECONDS);}catch(TimeoutException e){IOException timeout=new IOException("رسم فریم بیش از ۴۵ ثانیه طول کشید؛ رندر متوقف شد.",e);abort(timeout,true);throw timeout;}
  }
  private void draw(Capture c){
   try{
-   if(request.gpu){PixelCopy.request(window.getWindow(),new Rect(0,0,request.width,request.height),c.bitmap,status->{if(status==PixelCopy.SUCCESS)c.done.complete(null);else c.done.completeExceptionally(new IOException("ضبط GPU انجام نشد: "+status));if(pending==c)pending=null;},main);}
+   if(request.gpu){copying.add(c.bitmap);PixelCopy.request(window.getWindow(),new Rect(0,0,request.width,request.height),c.bitmap,status->{copying.remove(c.bitmap);if(status==PixelCopy.SUCCESS)c.done.complete(null);else c.done.completeExceptionally(new IOException("ضبط GPU انجام نشد: "+status));if(pending==c)pending=null;},main);}
    else{Canvas canvas=new Canvas(c.bitmap);canvas.drawColor(Color.BLACK);web.draw(canvas);c.done.complete(null);if(pending==c)pending=null;}
   }catch(Throwable e){c.done.completeExceptionally(e);if(pending==c)pending=null;}
  }
- void cancelPending(){main.post(()->{Capture c=pending;if(c!=null)c.done.completeExceptionally(new IOException("رندر لغو شد."));pending=null;});}
- private void closeNow(){closed=true;Capture c=pending;if(c!=null)c.done.completeExceptionally(new IOException("رندر بسته شد."));pending=null;if(clock!=null){clock.close();clock=null;}if(web!=null){web.stopLoading();web.destroy();web=null;}if(window!=null){window.dismiss();window=null;}if(display!=null){display.release();display=null;}if(sink!=null){sink.close();sink=null;}}
- @Override public void close(){try{onMain(()->{closeNow();return null;});}catch(Exception ignored){}}
+ boolean teardownComplete(){return released.isDone()&&copying.isEmpty();}
+ boolean canRecycle(Bitmap bitmap){return !copying.contains(bitmap);}
+ void cancelPending(){abort(new IOException("رندر لغو شد."),false);}
+ void abort(IOException error,boolean terminate){
+  rendererFailure=error;closed=true;
+  CompletableFuture<String> f=pendingJs;if(f!=null)f.completeExceptionally(error);
+  Capture c=pending;if(c!=null)c.done.completeExceptionally(error);
+  main.post(()->{
+   if(terminate||Build.VERSION.SDK_INT<29||web==null){if(terminate)terminateRenderer();closeNow();return;}
+   // A responsive renderer answers before teardown. A stuck script cannot survive cancellation.
+   WebView old=web;
+   try{old.evaluateJavascript("true",ignored->{if(web==old)closeNow();});}catch(RuntimeException ignored){terminateRenderer();closeNow();return;}
+   main.postDelayed(()->{if(web==old){terminateRenderer();closeNow();}},2000);
+  });
+ }
+ private void terminateRenderer(){if(Build.VERSION.SDK_INT>=29&&web!=null)try{WebViewRenderProcess process=web.getWebViewRenderProcess();if(process!=null)process.terminate();}catch(RuntimeException ignored){}}
+ private void closeNow(){
+  closed=true;CompletableFuture<String> f=pendingJs;if(f!=null)f.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));Capture c=pending;pending=null;if(c!=null)c.done.completeExceptionally(rendererFailure!=null?rendererFailure:new IOException("رندر بسته شد."));
+  if(clock!=null){try{clock.close();}catch(RuntimeException ignored){}clock=null;}
+  if(web!=null){WebView old=web;web=null;try{if(old.getParent() instanceof ViewGroup)((ViewGroup)old.getParent()).removeView(old);}catch(RuntimeException ignored){}try{if(rendererFailure==null)old.stopLoading();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
+  if(window!=null){try{window.dismiss();}catch(RuntimeException ignored){}window=null;}
+  if(display!=null){try{display.release();}catch(RuntimeException ignored){}display=null;}
+  if(sink!=null){try{sink.close();}catch(RuntimeException ignored){}sink=null;}if(fonts!=null)fonts.close();released.complete(null);
+ }
+ @Override public void close(){if(closed&&Looper.myLooper()!=Looper.getMainLooper())try{released.get(3,TimeUnit.SECONDS);}catch(Exception ignored){}try{onMain(()->{closeNow();return null;});}catch(Exception ignored){}}
 }

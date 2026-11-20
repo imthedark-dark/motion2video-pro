@@ -27,6 +27,12 @@ No microphone/audio track, ProRes/MOV alpha output or automatic recovery after f
 
 Version 1.4.1 packages the same rendering implementation with license notices and a version increment. Its APK/asset integrity, signature and source build are checked separately. Comparing the APKs found byte-identical `classes.dex` and `assets/studio.html`, with the new license files present; the recorded native rendering results above are from v1.4.0, not a new device acceptance run of v1.4.1.
 
+## Subsequent Phase 2 emulator evidence
+
+On 2026-11-19, the non-debuggable R8/resource-shrunk release completed the UI/native bridge, 360p30 H.264 render, automatic save and playable-result smoke test on the Android 11/API30 software emulator. FileProvider read access succeeded and write access was rejected. FFprobe and full FFmpeg decode confirmed 30 frames, one second, 640×360, YUV420P, BT.709 limited, with moov before mdat. See `tests/fixtures/verified-phase2-release-360p.mp4` and `phase2-release-validation.json`.
+
+Debug fixtures also passed actual WebView/worker/bridge checks, manual invocation of the service timeout handler during an active render (stopped service, deleted partial output, retained terminal error), and actual service WebView renderer termination with cleanup. The timeout invocation on API30 is not proof of Android 15's real six-hour quota scheduling. No physical-phone acceptance was added. [Phase 2 instructions](PHASE2_ANDROID.md).
+
 ## Repeat source and browser checks
 
 Prerequisites: JDK 17+, Python 3, Node/npm, SDK Platform 35 / Build Tools 35.0.0 for APK builds; Chromium for browser checks.
@@ -75,3 +81,37 @@ Compare the probe output with `background-validation.json`. Remote verification 
 ## Add a physical-device report
 
 Open an issue with model, Android/API version, WebView version, app tag/SHA-256, codec/settings, test animation, background/notification steps, resulting frame count/duration and pass/fail evidence. Remove personal data. Only add a device to the tested list after a reproducible report; do not infer support from an SDK minimum or a codec name.
+
+## Phase 3 (2026-11-19)
+
+Debug and R8/resource-shrunk unsigned release builds passed. UI/security probes, clock, all 72 byte-identical YUV cases and platform/copy regressions passed. Production import/memory/deadline policies passed 23 host cases; bridge/request sources passed 159 host schema/output-setting cases using the external JVM JSON test runtime. Compiled APK component/resource/R8 checks and asset hashes also passed.
+
+Phase 3 instrumentation compiled and installed but could not execute reliably: the API30 emulator's Android system process suffered network-stack crashes and ActivityManager remained unavailable at instrumentation startup. No new native or physical-device PASS is claimed. In particular, malicious-script termination/cancellation, preview timeout teardown, memory-pressure cancellation, large-import Activity recreation and the final minified APK's actual export remain acceptance gaps. See [Phase 3 reproduction and caveats](PHASE3_INPUT.md).
+
+## Phase 4 (2026-11-19)
+
+Debug and unsigned minified builds passed. Explicit signing without credentials fails; environment and ignored-local-properties signing both built successfully using a newly generated seven-day QA key outside Git. Apksigner verified the QA signature; all non-META-INF entries matched the restored unsigned release. Private properties and the QA distributable were removed from the checkout. No production identity or public APK was changed.
+
+UI/clock/security probes, all72 YUV byte-identical cases, platform, 23 input/budget and159 request-schema host checks passed. Asset verification covers36 unchanged files/13 component records;17 negative supply-chain guards passed. Npm audit returned zero known vulnerabilities. Workflow YAML/SHA/permission checks and actionlint1.7.12 passed. Existing v1.4.1 Release download checksum/ZIP checks passed. Native runtime scan inputs contain20 resolved artifacts.
+
+OWASP's full analysis remains blocked by NVD missing/anonymous-key access and CISA403 feed responses; this is not a clean vulnerability result. Private vulnerability reporting remains disabled after integration403. No new native/physical test PASS is claimed; Phase3 gaps carry forward. See [release process and gates](RELEASE.md).
+
+Publication guard verification passed with a throwaway QA candidate; wrong signer/tag, debuggable and unsigned APK cases were rejected. This only tests the local verifier. Guarded GitHub draft publishing was not invoked and remains gated on a green tagged-source audit and real native acceptance; it does not itself provide reproducible-build provenance.
+
+## Phase 5 (2026-11-19)
+
+Debug and minified unsigned builds pass; actual APK metadata requests WebView metrics opt-out and R8 retains console callback overrides. Host tests pass: UI/security (zero default TLS hits and positive consented synthetic POST), clock, all72 byte-identical YUV cases, platform,23 input/budget,159 request schema,22 public-error privacy cases and17 supply-chain guards. Desktop diagnostic success/failure/default/debug cases pass with identical encoding/audio arguments. A real desktop H.264640×36030fps export has30 frames, YUV420P/BT.709 limited and decodes fully. The studio preconnect removal is the only bundled byte change; its reviewed hash/size is updated.
+
+Native PrivacyTest compiled and packaged but was not executed. Full native logcat/network/provider/Safe Browsing behavior and physical-phone acceptance remain unverified; source/host TLS probes are not a device-wide packet capture. Existing Phase3/4 release gates remain separate. See [privacy evidence and manual checks](PHASE5_PRIVACY.md) and [bilingual policy](../PRIVACY.md).
+
+Phase 6 audio acceptance (pending physical device): run dev.motion2video.test.AudioExportTest on debug API29+; manually import MP3/AAC/PCM16 WAV/M4A on API26–35; verify clap/lip-sync at start/middle/end, trim/fade amplitude, mono/stereo and 44.1→48k conversion, short-audio padding, silent full-range byte regression, cancellation during decode/AAC/remux, low disk/memory and corrupted/header-only/large provider files. Verify release UI picker separately because debug reflection fixtures do not target R8 class names.
+
+Phase 6 queue acceptance (pending physical devices): fresh test install, run dev.motion2video.test.QueueExportTest (API29+, debug). Manually test API26–28 storage-denied fallback, notification-denied API33+, multi-select batch bounds, different per-batch settings/audio, current and waiting cancellation, failure then valid job, process death/force-stop→paused recovery, no old online consent on Resume, missing-cache/source/audio, old preview eviction with public Downloads preserved, Android15 service quota and teardown gate. Verify no second encoder overlaps cleanup and verify original default 1280×720/60/16Mbps/full-range silent output. Do not run destructive test setup against a production install.
+
+## Phase 9 Android phone checks
+
+- Import the original motion fixture offline and a version referencing an unbundled Google Font. Verify the font summary and see that a bare font-family only gives a status. Reject the consent once and check that the fallback plays without network requests.
+- On a test phone with internet available, approve the missing font. Check status updates and playback, then enable airplane mode and confirm that a fresh preview and export both use the saved face. Verify that the imported HTML's online-resources switch stayed off.
+- Cancel a throttled download and try a disconnected device. Verify fallback playback, responsive controls and no corrupt cache entry. Repeat with the feature switched off.
+- Remember an approved family, confirm a new family still asks, and confirm that an automatic draft reload does not start a download. Delete the family in Fonts and check that the remembered approval is removed.
+- Try clearing the cache during preview and during a long export or queue job. Verify that an active render is protected, the settings state updates after deletion, and subsequent previews fall back. Check scope isolation, any differences in installed-font match and minified builds on API 26–35. Compare a device capture of Google-bound requests against [FONTS.md](FONTS.md).

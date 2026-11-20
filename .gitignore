@@ -36,5 +36,6 @@ tests/*.png
 *.p8
 service-account*.json
 
-# Explicit distributable, never a signing key
-!downloads/*.apk
+# Private release signing configuration
+release-signing.properties
+release-signing*.properties
