@@ -87,7 +87,24 @@ public final class PublicErrors {
   "یک رندر دیگر در حال اجراست."
  )));
  private PublicErrors(){}
- public static String sanitize(String message){return message!=null&&message.length()<=512&&KNOWN.contains(message)?message:GENERIC;}
+ private static final Map<String,String> GUIDANCE=new HashMap<>();
+ static {
+  GUIDANCE.put("HTML یا دارایی‌های آن آماده نشدند.","موشن بارگذاری نشد؛ یک HTML مستقل با منابع محلی را در پیش‌نمایش امتحان کن.");
+  GUIDANCE.put("HTML، قلم‌ها یا اتصال ساعت رندر آماده نشد.","موشن برای ثبت فریم آماده نشد؛ فونت‌ها و پیش‌نمایش را بررسی کن و دوباره اجرا کن.");
+  GUIDANCE.put("ثبت فهرست دانلودها انجام نشد.","فهرست برنامه به‌روز نشد؛ پوشهٔ Download/Motion2Video را برای فایل ذخیره‌شده بررسی کن.");
+  GUIDANCE.put("اندازه یا کدک پشتیبانی نمی‌شود.","گوشی این ترکیب را پشتیبانی نمی‌کند؛ H.264، اندازهٔ کوچک‌تر یا ۳۰ فریم را امتحان کن.");
+  GUIDANCE.put("اندازهٔ خروجی معتبر نیست.","اندازهٔ خروجی را از یکی از قالب‌های آماده انتخاب کن.");
+  GUIDANCE.put("تنظیمات عددی معتبر نیست.","مدت، بازه و نرخ فریم را بررسی کن و دوباره رندر بگیر.");
+  GUIDANCE.put("ساخت فایل در دانلودها انجام نشد.","فایل خروجی ساخته نشد؛ فضای خالی و در اندروید ۸ و ۹ مجوز حافظه را بررسی کن.");
+  GUIDANCE.put("فضای خالی برای پردازش صدا کافی نیست.","برای فایل صوتی موقت جا نیست؛ فضا آزاد کن یا صدای کوتاه‌تری انتخاب کن.");
+  GUIDANCE.put("نمایشگر رندر ساخته نشد.","نمایشگر رندر آماده نشد؛ WebView را به‌روز کن و رندر را با اندازهٔ کوچک‌تر تکرار کن.");
+  GUIDANCE.put("فایل قابل خواندن نیست.","فایل باز نشد؛ آن را روی گوشی ذخیره و دوباره از انتخاب‌گر فایل انتخاب کن.");
+  GUIDANCE.put("نوع فایل HTML معتبر نیست.","فایل انتخاب‌شده HTML نیست؛ یک فایل متنی HTML یا HTM انتخاب کن.");
+  GUIDANCE.put("پخش‌کنندهٔ سازگار روی گوشی پیدا نشد.","پخش‌کننده‌ای برای این خروجی پیدا نشد؛ فایل را با یک پخش‌کنندهٔ سازگار باز کن یا H.264 بگیر.");
+ }
+ public static String sanitize(String message){if(message==null||message.length()>512)return GENERIC;
+  if(KNOWN.contains(message))return GUIDANCE.getOrDefault(message,message);
+  return GUIDANCE.containsValue(message)?message:GENERIC;}
  public static String message(Throwable error){
   Set<Throwable> seen=Collections.newSetFromMap(new IdentityHashMap<>());
   for(int depth=0;error!=null&&depth<8&&seen.add(error);depth++){
@@ -95,7 +112,7 @@ public final class PublicErrors {
    if(error instanceof SecurityException)return PERMISSION;
    if(error instanceof java.io.FileNotFoundException)return FILE;
    if(error instanceof java.util.concurrent.TimeoutException)return TIMEOUT;
-   try{String value=error.getMessage();if(value!=null&&value.length()<=512&&KNOWN.contains(value))return value;error=error.getCause();}catch(RuntimeException ignored){break;}
+   try{String value=error.getMessage();if(value!=null&&value.length()<=512&&(KNOWN.contains(value)||GUIDANCE.containsValue(value)))return sanitize(value);error=error.getCause();}catch(RuntimeException ignored){break;}
   }
   return GENERIC;
  }

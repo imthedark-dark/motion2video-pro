@@ -11,6 +11,10 @@ public final class PublicErrorsTest {
   same(PublicErrors.message(new SecurityException(canary)),PublicErrors.PERMISSION);
   same(PublicErrors.message(new OutOfMemoryError(canary)),PublicErrors.MEMORY);
   same(PublicErrors.message(new TimeoutException(canary)),PublicErrors.TIMEOUT);
+  String guidance=PublicErrors.message(new IOException("ثبت فهرست دانلودها انجام نشد."));
+  if(!guidance.contains("Download/Motion2Video"))throw new AssertionError("Missing recovery guidance");
+  same(PublicErrors.sanitize(guidance),guidance);
+  same(PublicErrors.sanitize(guidance+canary),PublicErrors.GENERIC);
   String useful="رسم فریم بیش از ۴۵ ثانیه طول کشید؛ رندر متوقف شد.";
   same(PublicErrors.message(new ExecutionException(new IOException(useful))),useful);
   same(PublicErrors.message(new IOException("wrapper "+canary,new SecurityException(canary))),PublicErrors.PERMISSION);
