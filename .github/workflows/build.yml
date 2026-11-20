@@ -2,6 +2,8 @@ name: Build and audit Android APK
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
   workflow_dispatch:
 permissions:
   contents: read
@@ -81,10 +83,21 @@ jobs:
         with:
           name: dependency-audit-inputs
           path: build/security-dependencies/
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/odc-data
+          key: odc-linux-13-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: odc-linux-13-v1-
       - name: OWASP Dependency-Check (CVSS 7+, errors fail the job)
         env:
+          M2V_ODC_DATA: ${{ runner.temp }}/odc-data
           NVD_API_KEY: ${{ github.event_name != 'pull_request' && secrets.NVD_API_KEY || '' }}
-        run: ./gradlew --no-daemon -p tools/dependency-check dependencyCheckAnalyze
+        run: python3 tools/dependency_scan.py
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        if: success() && github.event_name != 'pull_request'
+        with:
+          path: ${{ runner.temp }}/odc-data
+          key: odc-linux-13-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
